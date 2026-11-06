@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Deb Whitman Content Review | Emily Tumis Creative</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a review queue. Status summary up top, video list on the left, the open video's posts on the right, each post with its own two-step sign-off. */
+:root{
+  --bg:#F6F4F8; --panel:#FFFFFF; --ink:#1A1626; --muted:#625B70; --line:#E3DDE9; --soft:#EFEAF3;
+  --plum:#4A2459; --plum-ink:#FFFFFF; --pink:#A9479C; --pink-soft:#F6E6F3;
+  --ok:#1E7046; --ok-soft:#E2F3E9; --warn:#8F5A00; --warn-soft:#FFF0D6; --bad:#B03A2E; --bad-soft:#FBE6E3;
+  --f-display:"Young Serif", Georgia, "Times New Roman", serif;
+  --f-body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#151219; --panel:#1E1A24; --ink:#EEE9F2; --muted:#A79FB3; --line:#332C3B; --soft:#28222F;
+  --plum:#C9A2DA; --plum-ink:#1A1020; --pink:#E39BD8; --pink-soft:#3A2238;
+  --ok:#7BD3A0; --ok-soft:#173326; --warn:#F0BC6A; --warn-soft:#3A2C14; --bad:#FF9A8E; --bad-soft:#3D1E1B; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:20px}
+[hidden]{display:none!important}
+h1,h2,h3{margin:0;text-wrap:balance}
+h1{font-family:var(--f-display);font-weight:400;font-size:28px;letter-spacing:-.01em}
+h2{font-family:var(--f-display);font-weight:400;font-size:24px}
+h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:7px 14px;font-weight:600;font-size:14px}
+button:hover{border-color:var(--muted)}
+button:disabled{opacity:.5;cursor:default}
+.b-primary{background:var(--plum);border-color:var(--plum);color:var(--plum-ink)}
+.b-approve{background:var(--ok);border-color:var(--ok);color:var(--panel)}
+.b-changes{color:var(--bad);border-color:var(--bad)}
+.ghost{border-color:transparent;background:transparent;color:var(--muted);padding:5px 8px}
+:focus-visible{outline:2px solid var(--pink);outline-offset:2px}
+input,textarea,select{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 11px;width:100%}
+textarea{resize:vertical;min-height:64px}
+a{color:var(--pink)}
+.wrap{max-width:1240px;margin:0 auto;display:grid;gap:18px}
+.top{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between}
+.sub{color:var(--muted);font-size:13.5px}
+.tabs{display:flex;gap:6px;border-bottom:1px solid var(--line)}
+.tab{border:none;border-radius:0;background:none;border-bottom:2px solid transparent;color:var(--muted);padding:8px 12px}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--pink)}
+.tally{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:grid;gap:2px}
+.tile b{font-size:26px;font-variant-numeric:tabular-nums;font-weight:700}
+.tile span{font-size:13px;color:var(--muted)}
+.t-review b{color:var(--plum)} .t-deb b{color:var(--pink)} .t-changes b{color:var(--bad)} .t-done b{color:var(--ok)}
+.who-box{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13.5px}
+.who-box select,.who-box input{width:auto;padding:6px 10px}
+.desk{display:grid;grid-template-columns:320px minmax(0,1fr);gap:18px;align-items:start}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px}
+.list{padding:8px;display:grid;gap:4px;position:sticky;top:calc(env(safe-area-inset-top, 0px) + 12px)}
+.vid{width:100%;text-align:left;border:1px solid transparent;border-radius:12px;background:none;padding:10px 12px;display:grid;gap:6px;font-weight:400}
+.vid:hover{background:var(--soft)}
+.vid[aria-current="true"]{background:var(--pink-soft);border-color:var(--pink)}
+.vid .t{font-weight:600;line-height:1.3}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;border-radius:999px;padding:3px 10px;background:var(--soft);color:var(--muted);white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.p-review{color:var(--plum)} .p-deb{background:var(--pink-soft);color:var(--pink)} .p-changes{background:var(--bad-soft);color:var(--bad)} .p-done{background:var(--ok-soft);color:var(--ok)}
+.detail{padding:22px;display:grid;gap:18px;min-width:0}
+.meta{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.note{background:var(--soft);border-radius:12px;padding:12px 14px;font-size:14px}
+.posts{display:grid;gap:14px}
+.post{border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:12px;min-width:0}
+.post.s-done{border-color:var(--ok)} .post.s-changes{border-color:var(--bad)}
+.post-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}
+.kind{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--pink)}
+.field{display:grid;gap:4px;min-width:0}
+.field label{font-size:12px;font-weight:600;color:var(--muted)}
+.copytext{white-space:pre-wrap;background:var(--bg);border-radius:10px;padding:12px 14px;font-size:14.5px;line-height:1.6;overflow-wrap:anywhere}
+.steps{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.step{border-radius:10px;padding:10px 12px;background:var(--soft);font-size:13px;display:grid;gap:2px}
+.step.ok{background:var(--ok-soft);color:var(--ok)} .step.bad{background:var(--bad-soft);color:var(--bad)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.comments{display:grid;gap:8px}
+.cmt{font-size:14px;background:var(--bg);border-radius:10px;padding:8px 12px}
+.cmt .who{font-weight:600;font-size:13px} .cmt .when{color:var(--muted);font-size:12px}
+.empty{padding:48px 20px;text-align:center;color:var(--muted)}
+.gate{max-width:420px;margin:12vh auto 0;display:grid;gap:14px;padding:28px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom, 0px));background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:14px;z-index:20}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;color:var(--muted);font-weight:600} td.n,th.n{text-align:right}
+.tbl{overflow-x:auto}
+.foot{color:var(--muted);font-size:12.5px;text-align:center;padding-top:8px}
+.back{display:none}
+@media (max-width:880px){
+  .desk{grid-template-columns:1fr} .list{position:static}
+  .tally{grid-template-columns:repeat(2,minmax(0,1fr))} .steps{grid-template-columns:1fr}
+  body.has-sel .listwrap{display:none} body:not(.has-sel) .detailwrap{display:none} .back{display:inline-block}
+}
+</style>
+</head>
+<body>
+<form class="panel gate" id="gate">
+  <div class="sub">Emily Tumis Creative</div>
+  <h1>Deb Whitman Content Review</h1>
+  <label for="passcode" class="sub">Enter the passcode Emily sent you.</label>
+  <input id="passcode" type="password" autocomplete="current-password" required>
+  <button class="b-primary" type="submit" id="gateBtn">Open</button>
+  <div class="sub" id="gateMsg" role="alert"></div>
+</form>
+
+<div class="wrap" id="app" hidden>
+  <header class="top">
+    <div style="display:grid;gap:4px">
+      <div class="sub">Emily Tumis Creative for AARP</div>
+      <h1>Deb Whitman Content Review</h1>
+      <div class="sub">Review each post, approve it or ask for changes. The AARP reviewer approves first, then Deb gives final approval.</div>
+    </div>
+    <div class="who-box">
+      <label for="myName">Your name</label><input id="myName" placeholder="First name" size="10">
+      <label for="role">reviewing as</label>
+      <select id="role">
+        <option value="">Choose…</option>
+        <option value="reviewer">AARP reviewer</option>
+        <option value="deb">Deb (final approval)</option>
+        <option value="etc">Emily Tumis Creative</option>
+      </select>
+    </div>
+  </header>
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tabReview" aria-selected="true">Review</button>
+    <button class="tab" role="tab" id="tabStats" aria-selected="false">Analytics</button>
+  </nav>
+
+  <section id="viewReview" style="display:grid;gap:18px">
+    <section class="tally" id="tally" aria-label="Summary"></section>
+    <div id="etcBar" class="actions" hidden><button id="btnCsv">Export approved posts for Cloud Campaign (CSV)</button><span class="sub">Only posts Deb has approved are included.</span></div>
+    <div class="desk">
+      <aside class="panel listwrap"><div class="list" id="list"></div></aside>
+      <main class="panel detailwrap"><div class="empty" id="detailEmpty">Pick a video on the left to review its posts.</div><div class="detail" id="detail" hidden></div></main>
+    </div>
+  </section>
+
+  <section id="viewStats" hidden style="display:grid;gap:18px"></section>
+  <div class="foot">Prepared by Emily Tumis Creative · Drafts are confidential until approved.</div>
+</div>
+
+<script>
+// ---- configuration (filled in by ETC) ----
+const API_URL = "";           // Google Apps Script web app URL
+const CONTENT_FILE = "content.enc.json";
+const ANALYTICS_FILE = "analytics.enc.json";
+// -------------------------------------------
+
+const $=s=>document.querySelector(s);
+const el=(tag,attrs={},...kids)=>{const n=document.createElement(tag);for(const[k,v]of Object.entries(attrs||{})){if(k==="class")n.className=v;else if(k==="text")n.textContent=v;else if(k.startsWith("on"))n.addEventListener(k.slice(2),v);else if(v!==false&&v!=null)n.setAttribute(k,v===true?"":v)}for(const c of kids.flat()){if(c==null||c===false)continue;n.append(c.nodeType?c:document.createTextNode(String(c)))}return n};
+const store={get:k=>{try{return localStorage.getItem(k)||""}catch{return""}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch{}}};
+let code="",items=[],analytics=null,decisions={},comments=[],selId=null,role=store.get("role"),myName=store.get("name");
+function toast(m){const t=el("div",{class:"toast",role:"status",text:m});document.body.append(t);setTimeout(()=>t.remove(),2400)}
+async function copy(t){try{await navigator.clipboard.writeText(t);toast("Copied")}catch{toast("Select the text to copy it")}}
+const fmt=ts=>ts?new Date(ts).toLocaleString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}):"";
+const dkey=(v,p)=>v+"--"+p;
+
+// ---- decrypt (PBKDF2-SHA256 -> AES-256-GCM) ----
+const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function decryptFile(url,pass){const r=await fetch(url+"?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw{code:"missing"};const e=await r.json();
+  const base=await crypto.subtle.importKey("raw",new TextEncoder().encode(pass),"PBKDF2",false,["deriveKey"]);
+  const key=await crypto.subtle.deriveKey({name:"PBKDF2",salt:b64(e.salt),iterations:e.iter,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["decrypt"]);
+  try{const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(e.iv)},key,b64(e.ct));return JSON.parse(new TextDecoder().decode(pt))}catch{throw{code:"bad_code"}}}
+
+// ---- backend ----
+async function api(body){if(!API_URL)throw{code:"no_api"};const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({...body,code})});const j=await r.json();if(!j.ok)throw{code:j.error||"error"};return j}
+async function refresh(){try{const j=await api({action:"load"});decisions=j.decisions||{};comments=j.comments||[];renderAll()}catch(e){if(e.code==="no_api")return}}
+
+// ---- gate ----
+$("#gate").addEventListener("submit",async e=>{e.preventDefault();const pass=$("#passcode").value.trim();$("#gateBtn").disabled=true;$("#gateMsg").textContent="Opening…";
+  try{await openReview(pass);store.set("pc",pass)}catch(err){$("#gateMsg").textContent=err.code==="bad_code"?"That passcode didn't work. Check the one Emily sent you.":"The review page couldn't load. Try again in a minute."}finally{$("#gateBtn").disabled=false}});
+async function openReview(pass){const data=await decryptFile(CONTENT_FILE,pass);code=pass;items=(data.items||[]).filter(x=>!x.hidden).sort((a,b)=>(a.order||0)-(b.order||0));
+  try{analytics=await decryptFile(ANALYTICS_FILE,pass)}catch{analytics=null}
+  $("#gate").hidden=true;$("#app").hidden=false;const h=location.hash.slice(1);if(h&&items.some(i=>i.id===h))select(h);renderAll();refresh();setInterval(()=>{if(document.visibilityState==="visible")refresh()},30000)}
+(async()=>{const saved=store.get("pc");if(saved){try{await openReview(saved)}catch{}}})();
+
+// ---- identity ----
+$("#myName").value=myName;$("#role").value=role;
+$("#myName").onchange=e=>{myName=e.target.value.trim();store.set("name",myName)};
+$("#role").onchange=e=>{role=e.target.value;store.set("role",role);renderAll()};
+const roleName=r=>({reviewer:"AARP reviewer",deb:"Deb",etc:"ETC"}[r]||"");
+
+// ---- state ----
+function pieceState(v,p){const d=decisions[dkey(v,p)]||{};if(d.reviewer?.status==="changes"||d.deb?.status==="changes")return"changes";if(d.deb?.status==="approved")return"done";if(d.reviewer?.status==="approved")return"deb";return"review"}
+function videoState(it){const s=(it.pieces||[]).map(p=>pieceState(it.id,p.key));if(!s.length)return"review";if(s.includes("changes"))return"changes";if(s.every(x=>x==="done"))return"done";if(s.every(x=>x==="deb"||x==="done"))return"deb";return"review"}
+const LABEL={review:"Needs review",deb:"With Deb",changes:"Changes requested",done:"Approved"};
+const pill=s=>el("span",{class:"pill p-"+s},LABEL[s]);
+
+// ---- actions ----
+async function decide(v,p,stage,status,note){if(!myName){$("#myName").focus();toast("Add your name at the top first");return}
+  try{const j=await api({action:"decide",videoId:v,pieceKey:p,stage,status,note:note||"",name:myName});decisions=j.decisions||decisions;renderAll();toast(status==="approved"?"Approved":status==="clear"?"Cleared":"Changes requested")}
+  catch(e){toast(e.code==="no_api"?"Approvals aren't switched on yet. Emily is finishing setup.":"Couldn't save. Check your connection and try again.")}}
+async function addComment(v,p,text){if(!text.trim())return;if(!myName){$("#myName").focus();toast("Add your name at the top first");return}
+  try{const j=await api({action:"comment",videoId:v,pieceKey:p,text,name:myName,role});comments=j.comments||comments;renderAll();toast("Comment added")}catch{toast("Couldn't add the comment.")}}
+
+// ---- render: review ----
+function renderAll(){renderTally();renderList();renderDetail();$("#etcBar").hidden=role!=="etc";if(!$("#viewStats").hidden)renderStats()}
+function renderTally(){const all=items.flatMap(it=>(it.pieces||[]).map(p=>pieceState(it.id,p.key)));const c=k=>all.filter(x=>x===k).length;
+  $("#tally").replaceChildren(...[["review","t-review","Posts waiting for the AARP reviewer"],["deb","t-deb","Posts waiting for Deb"],["changes","t-changes","Posts with changes requested"],["done","t-done","Posts fully approved"]].map(([k,cls,l])=>el("div",{class:"tile "+cls},el("b",{},String(c(k))),el("span",{},l))))}
+function renderList(){const L=$("#list");L.replaceChildren();if(!items.length){L.append(el("div",{class:"empty"},"Nothing to review yet. Emily will add posts here when they're ready."));return}
+  for(const it of items){const n=(it.pieces||[]).length;L.append(el("button",{class:"vid","aria-current":it.id===selId?"true":"false",onclick:()=>select(it.id)},el("span",{class:"t"},it.title),el("span",{style:"display:flex;gap:8px;flex-wrap:wrap;align-items:center"},pill(videoState(it)),el("span",{class:"sub"},n+" post"+(n===1?"":"s")))))}}
+function select(id){selId=id;document.body.classList.toggle("has-sel",!!id);try{history.replaceState(null,"",id?"#"+id:location.pathname)}catch{}renderList();renderDetail()}
+function stepBox(d,label){if(!d)return el("div",{class:"step"},el("b",{},label),"Waiting");return el("div",{class:"step "+(d.status==="approved"?"ok":"bad")},el("b",{},label+(d.status==="approved"?": approved":": changes requested")),[d.by,fmt(d.at)].filter(Boolean).join(" · "),d.note?el("span",{},"“"+d.note+"”"):null)}
+function renderDetail(){const it=items.find(x=>x.id===selId);$("#detailEmpty").hidden=!!it;const D=$("#detail");D.hidden=!it;if(!it)return;
+  if(D.contains(document.activeElement)&&document.activeElement.matches("textarea,input"))return;
+  D.replaceChildren(el("div",{style:"display:grid;gap:8px"},el("button",{class:"ghost back",onclick:()=>select(null)},"← All videos"),el("h2",{},it.title),
+    el("div",{class:"meta"},pill(videoState(it)),it.videoUrl?el("a",{href:it.videoUrl,target:"_blank",rel:"noopener"},"Watch the full video"):null,it.graphicsUrl?el("a",{href:it.graphicsUrl,target:"_blank",rel:"noopener"},"View the graphics"):null)));
+  if(it.note)D.append(el("div",{class:"note"},el("b",{},"Note from Emily: "),it.note));
+  if(!role||!myName)D.append(el("div",{class:"note"},"Add your name and choose who you're reviewing as at the top of the page to approve or request changes."));
+  const stage=role==="deb"?"deb":role==="reviewer"?"reviewer":null;const P=el("div",{class:"posts"});let group="";
+  for(const p of it.pieces||[]){if(p.group&&p.group!==group){group=p.group;P.append(el("h3",{},group))}
+    const d=decisions[dkey(it.id,p.key)]||{},st=pieceState(it.id,p.key);
+    const noteBox=el("textarea",{id:"note-"+p.key,rows:2,placeholder:"What should change? (optional when approving)","aria-label":"Note for "+p.label});
+    const acts=el("div",{class:"actions"});
+    if(stage){const mine=d[stage];
+      acts.append(el("button",{class:"b-approve",onclick:()=>decide(it.id,p.key,stage,"approved",noteBox.value)},mine?.status==="approved"?"Approved ✓":"Approve"),
+        el("button",{class:"b-changes",onclick:()=>{if(!noteBox.value.trim()){noteBox.focus();toast("Add a note saying what to change");return}decide(it.id,p.key,stage,"changes",noteBox.value)}},"Request changes"),
+        mine?el("button",{class:"ghost",onclick:()=>decide(it.id,p.key,stage,"clear","")},"Undo"):null)}
+    const cs=comments.filter(c=>c.videoId===it.id&&c.pieceKey===p.key).sort((a,b)=>a.at-b.at);
+    const cIn=el("input",{id:"cmt-"+p.key,placeholder:"Add a comment","aria-label":"Comment on "+p.label,onkeydown:e=>{if(e.key==="Enter"){e.preventDefault();addComment(it.id,p.key,cIn.value)}}});
+    P.append(el("article",{class:"post s-"+st},
+      el("div",{class:"post-head"},el("div",{style:"display:grid;gap:2px"},el("span",{class:"kind"},p.platform||""),el("strong",{},p.label)),el("div",{class:"actions"},pill(st),el("button",{class:"ghost",onclick:()=>copy((p.fields||[]).map(f=>f.value).join("\n\n"))},"Copy"))),
+      p.link?el("a",{href:p.link,target:"_blank",rel:"noopener"},p.linkLabel||"Open"):null,
+      ...(p.fields||[]).map(f=>el("div",{class:"field"},f.label?el("label",{},f.label):null,el("div",{class:"copytext"},f.value||""))),
+      el("div",{class:"steps"},stepBox(d.reviewer,"AARP reviewer"),stepBox(d.deb,"Deb")),stage?noteBox:null,acts,
+      el("div",{class:"comments"},...cs.map(c=>el("div",{class:"cmt"},el("span",{class:"who"},c.by||roleName(c.role)||"Someone")," ",el("span",{class:"when"},fmt(c.at)),el("div",{},c.text))),
+        el("div",{style:"display:flex;gap:8px"},cIn,el("button",{onclick:()=>addComment(it.id,p.key,cIn.value)},"Post")))))}
+  D.append(P)}
+
+// ---- CSV for Cloud Campaign ----
+const csvCell=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
+$("#btnCsv").onclick=()=>{const rows=[["Video","Post","Platform","Post copy","Link","Media","Publish date","Publish time"]];
+  for(const it of items)for(const p of it.pieces||[]){if(pieceState(it.id,p.key)!=="done")continue;
+    for(const f of p.fields||[]){const plat=f.label&&/linkedin|instagram/i.test(f.label)?f.label.replace(/ caption/i,""):p.platform;rows.push([it.title,p.label,plat,f.value,p.link||it.videoUrl||"",it.graphicsUrl||"","",""])}}
+  if(rows.length===1){toast("No posts are fully approved yet");return}
+  const blob=new Blob([rows.map(r=>r.map(csvCell).join(",")).join("\r\n")],{type:"text/csv"});const a=el("a",{href:URL.createObjectURL(blob),download:"deb-approved-posts.csv"});document.body.append(a);a.click();a.remove();toast((rows.length-1)+" posts exported")};
+
+// ---- analytics ----
+$("#tabReview").onclick=()=>switchTab(false);$("#tabStats").onclick=()=>switchTab(true);
+function switchTab(stats){$("#tabReview").setAttribute("aria-selected",String(!stats));$("#tabStats").setAttribute("aria-selected",String(stats));$("#viewReview").hidden=stats;$("#viewStats").hidden=!stats;if(stats)renderStats()}
+const num=n=>n==null||n===""?"–":Number(n).toLocaleString();
+function renderStats(){const S=$("#viewStats");S.replaceChildren();
+  if(!analytics||!(analytics.posts||[]).length){S.append(el("div",{class:"panel empty"},"Performance numbers appear here once posts go live. Emily updates them weekly."));return}
+  const posts=analytics.posts;const sum=k=>posts.reduce((a,p)=>a+(Number(p[k])||0),0);
+  S.append(el("div",{class:"sub"},"Updated "+(analytics.updatedAt?new Date(analytics.updatedAt).toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"}):"")+(analytics.period?" · "+analytics.period:"")));
+  S.append(el("section",{class:"tally"},...[["Posts published",posts.length],["Total reach",sum("reach")],["Total engagements",sum("likes")+sum("comments")+sum("saves")+sum("shares")],["Video views",sum("views")]].map(([l,v])=>el("div",{class:"tile"},el("b",{},num(v)),el("span",{},l)))));
+  if(analytics.highlights?.length)S.append(el("div",{class:"note"},el("b",{},"Highlights"),el("ul",{style:"margin:6px 0 0;padding-left:18px"},...analytics.highlights.map(h=>el("li",{},h)))));
+  const cols=[["Post",null],["Platform",null],["Date",null],["Reach","reach"],["Views","views"],["Likes","likes"],["Comments","comments"],["Saves","saves"],["Shares","shares"]];
+  S.append(el("div",{class:"panel tbl"},el("table",{},el("thead",{},el("tr",{},...cols.map(([l,k])=>el("th",{class:k?"n":""},l)))),
+    el("tbody",{},...posts.map(p=>el("tr",{},el("td",{},p.url?el("a",{href:p.url,target:"_blank",rel:"noopener"},p.title||"Post"):(p.title||"Post")),el("td",{},p.platform||""),el("td",{},p.date||""),...cols.slice(3).map(([,k])=>el("td",{class:"n"},num(p[k])))))))))}
+</script>
+</body>
+</html>
