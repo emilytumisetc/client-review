@@ -70,14 +70,30 @@ def piece_keys(c, g):
     if (c.get("carousel") or {}).get("slides") and g.get("carousel", False): keys.append("carousel")
     return keys
 
+def full_len(v):
+    sec = (v.get("opus") or {}).get("durationSec") or 0
+    if not sec and (v.get("opus") or {}).get("projectId"):  # only OpusClip transcripts carry real timestamps
+        m = re.findall(r"(\d{1,2}):(\d{2}) - (\d{1,2}):(\d{2})", v.get("transcript") or "")
+        if m: sec = int(m[-1][2]) * 60 + int(m[-1][3])
+    return f"{sec // 60}:{sec % 60:02d}" if sec else ""
+
+def long_video(v, p, k):
+    url = (v.get("longVideos") or {}).get(k) or v.get("driveUrl")
+    if url:
+        p["video"] = url
+        ln = full_len(v) if url == v.get("driveUrl") else ""
+        p["linkLabel"] = "Play the full video" + (f" · {ln}" if ln else "")
+
 def build_piece(v, k, img_for, poster_for=None):
     c = v.get("content") or {}
     sched = (v.get("schedule") or {}).get(k) or {}
     p = {"key": k, "date": sched.get("date", ""), "time": sched.get("time", "")}
     if k == "linkedin":
         p.update(group="Long video", platform="LinkedIn", label="Long video caption", fields=[{"label": "", "value": c["linkedin"].get("caption", "")}])
+        long_video(v, p, k)
     elif k == "instagram":
         p.update(group="Long video", platform="Instagram", label="Long video caption", fields=[{"label": "", "value": c["instagram"].get("caption", "")}])
+        long_video(v, p, k)
     elif k.startswith("reel"):
         r = c["reels"][int(k[4:])]
         cut = f"Starts at: \"{r.get('startLine','')}\"\nEnds at: \"{r.get('endLine','')}\""
@@ -169,7 +185,7 @@ def main():
             if not f: missing.append(aid)
             return f
         item = {"id": vid, "order": v.get("order", 0), "title": f"Video {v.get('order')}: {v.get('title','')}" if v.get("kind") == "finished" else v.get("title", ""),
-                "topic": v.get("topic", ""), "videoUrl": v.get("driveUrl", ""), "graphicsUrl": "", "sentAt": now,
+                "topic": v.get("topic", ""), "videoUrl": v.get("driveUrl", ""), "duration": full_len(v), "graphicsUrl": "", "sentAt": now,
                 "note": v.get("clientNote", ""), "pieces": [build_piece({**v, "_id": vid}, k, img_for, poster_for) for k in keys]}
         if v.get("posterId"):
             f = enc_image(v["posterId"], f"{vid}-poster")
