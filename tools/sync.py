@@ -5,7 +5,7 @@ Run from the repo root:
 
 --videos  folder of studio video records (ArtifactData list with out_dir, collection "videos")
 --sheet   text of the "Deb Content Review (ETC)" Google Sheet (Drive read_file_content fileContent)
---assets  folder holding studio images named <assetId>.<ext> (poster + graphics of queued videos)
+--assets  folder holding studio images named <assetId>.<ext> (poster, clip thumbnails in clipPosters, and graphics of queued videos)
 Writes content.enc.json and img/*.enc.json in place, and a JSON list of studio updates
 [{"doc_id": ..., "version": ..., "data": {...}}] to apply with ArtifactData update.
 """
@@ -70,7 +70,7 @@ def piece_keys(c, g):
     if (c.get("carousel") or {}).get("slides") and g.get("carousel", False): keys.append("carousel")
     return keys
 
-def build_piece(v, k, img_for):
+def build_piece(v, k, img_for, poster_for=None):
     c = v.get("content") or {}
     sched = (v.get("schedule") or {}).get(k) or {}
     p = {"key": k, "date": sched.get("date", ""), "time": sched.get("time", "")}
@@ -84,6 +84,10 @@ def build_piece(v, k, img_for):
         p.update(group="Reels", platform="Instagram Reel", label=r.get("angle") or f"Reel {int(k[4:])+1}",
                  fields=[{"label": "On-screen text", "value": r.get("onScreenText", "")}, {"label": "Caption", "value": r.get("caption", "")}, {"label": "Where the clip is cut", "value": cut}])
         if v.get("driveUrl"): p["video"] = v["driveUrl"]; p["linkLabel"] = "Play the full video"
+        cp = (v.get("clipPosters") or {}).get(str(r.get("opusClipId") or ""))
+        if cp and cp.get("id") and poster_for:
+            f = poster_for(cp["id"], f"{v.get('_id','v')}-{k}-poster")
+            if f: p["poster"] = f
     elif k.startswith("story"):
         s = c["stories"][int(k[5:])]; st = s.get("sticker") or {}
         sticker = ""
@@ -160,9 +164,13 @@ def main():
                 if f: out.append({"file": f, "alt": im.get("label", "")})
                 else: missing.append(im["id"])
             return out
+        def poster_for(aid, name):
+            f = enc_image(aid, name)
+            if not f: missing.append(aid)
+            return f
         item = {"id": vid, "order": v.get("order", 0), "title": f"Video {v.get('order')}: {v.get('title','')}" if v.get("kind") == "finished" else v.get("title", ""),
                 "topic": v.get("topic", ""), "videoUrl": v.get("driveUrl", ""), "graphicsUrl": "", "sentAt": now,
-                "note": v.get("clientNote", ""), "pieces": [build_piece(v, k, img_for) for k in keys]}
+                "note": v.get("clientNote", ""), "pieces": [build_piece({**v, "_id": vid}, k, img_for, poster_for) for k in keys]}
         if v.get("posterId"):
             f = enc_image(v["posterId"], f"{vid}-poster")
             if f: item["poster"] = f
