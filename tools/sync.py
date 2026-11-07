@@ -188,6 +188,8 @@ def amy_sync(acode, videos, tabs, updates, asset_file, now):
         if st != "queued" or not v.get("content"): continue
         c = v["content"]; g = {"stat": True, "quote": True, "carousel": False, **(v.get("graphics") or {})}
         keys = [k for k in piece_keys(c, g) if (v.get("pieceStatus") or {}).get(k) != "Skip"]
+        chosen = [k for k in keys if (v.get("pieceStatus") or {}).get(k) == "With Amy"]
+        keys = chosen or keys
         gi = v.get("graphicsImages") or []
         pieces = []
         for k in keys:
