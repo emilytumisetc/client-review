@@ -124,6 +124,11 @@ th{font-size:12px;color:var(--muted);font-weight:600} td.n,th.n{text-align:right
 .amy-field textarea[readonly]{background:var(--soft,transparent);color:var(--ink);cursor:default;resize:none}
 .amy-field textarea[readonly]:focus{outline:none}
 .post-head{gap:10px;flex-wrap:wrap}
+.post.approved{border-color:var(--ok);box-shadow:inset 3px 0 0 var(--ok)}
+.appbtn{white-space:nowrap;border:1px solid var(--ok);color:var(--ok);background:none;border-radius:999px;padding:6px 14px;font-weight:600}
+.appbtn[aria-pressed="true"]{background:var(--ok);color:var(--panel)}
+.head-btns{display:flex;gap:8px;flex-wrap:wrap}
+.sendwarn{color:var(--warn);font-size:13.5px}
 .lockbtn{white-space:nowrap;border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:600}
 .amy-field textarea.changed{border-color:var(--pink);box-shadow:0 0 0 2px color-mix(in srgb,var(--pink) 25%,transparent)}
 .amy-field .orig{font-size:13px;color:var(--muted);white-space:pre-wrap}
@@ -178,6 +183,10 @@ function player(url,label){const id=driveId(url);if(!id)return url?el("a",{href:
 async function api(body){const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({...body,code})});const j=await r.json();if(!j.ok)throw{code:j.error||"error"};return j}
 async function refresh(){try{const j=await api({action:"amy_load"});edits=j.edits||[];status=j.status||[];renderAll()}catch(e){if(e.code==="unknown_action"||e.code==="bad_code")toast("Saving isn't switched on yet. Emily is finishing setup.")}}
 const editFor=(v,p,f)=>edits.find(x=>x.videoId===v&&x.pieceKey===p&&x.field===f);
+const APPROVE="__approved";
+const approvedFor=(it,k)=>{const e=editFor(it.id,k,APPROVE);return !!(e&&e.text==="yes"&&e.at>(it.sentAt||0))};
+async function setApproved(it,p,yes){if(!myName){$("#myName").focus();toast("Add your name at the top first");return}
+  try{const j=await api({action:"edit",videoId:it.id,pieceKey:p.key,field:APPROVE,path:[],text:yes?"yes":"no",note:"",name:myName});edits=j.edits||edits;toast(yes?"Approved":"Approval removed");renderAll()}catch{toast("Couldn't save. Check your connection.")}}
 const doneFor=v=>{const it=items.find(x=>x.id===v);return status.filter(s=>s.videoId===v&&s.at>(it?.sentAt||0)).sort((a,b)=>b.at-a.at)[0]};
 
 $("#gate").addEventListener("submit",async e=>{e.preventDefault();const pass=$("#passcode").value.trim().toLowerCase().replace(/\s+/g,"");
@@ -193,9 +202,9 @@ $("#myName").addEventListener("change",e=>{myName=e.target.value.trim();store.se
 const unlocked=new Set();
 function renderAll(){renderList();renderDetail()}
 function renderList(){const L=$("#list");L.replaceChildren();if(!items.length){L.append(el("div",{class:"empty"},"Nothing to edit right now."));return}
-  for(const it of items){const n=edits.filter(x=>x.videoId===it.id).length,d=doneFor(it.id);
+  for(const it of items){const n=edits.filter(x=>x.videoId===it.id&&x.field!==APPROVE).length,d=doneFor(it.id),tot=(it.pieces||[]).length,ap=(it.pieces||[]).filter(p=>approvedFor(it,p.key)).length;
     L.append(el("button",{class:"vid","aria-current":it.id===selId?"true":"false",onclick:()=>{selId=it.id;try{history.replaceState(null,"","#"+it.id)}catch{}document.body.classList.add("has-sel");renderAll()}},
-      el("span",{class:"t"},it.title),el("span",{class:"sub"},d?"Sent back to Emily "+fmt(d.at):(n?n+" edit"+(n===1?"":"s")+" saved":"Not started"))))}}
+      el("span",{class:"t"},it.title),el("span",{class:"sub"},d?"Sent back to Emily "+fmt(d.at):(ap||n?ap+" of "+tot+" approved"+(n?" · "+n+" edit"+(n===1?"":"s"):""):"Not started"))))}}
 async function saveField(it,p,f,ta,note){const text=ta.value;if(!myName){$("#myName").focus();toast("Add your name at the top first");return}
   if(text===f.value&&!editFor(it.id,p.key,f.label)){return}
   try{const j=await api({action:"edit",videoId:it.id,pieceKey:p.key,field:f.label,path:f.path,text,note:note||"",name:myName});edits=j.edits||edits;renderList();
@@ -211,7 +220,8 @@ function renderDetail(){const it=items.find(x=>x.id===selId);$("#detailEmpty").h
     const uk=it.id+"|"+p.key,open=unlocked.has(uk);const fieldEls=[];
     const lockBtn=el("button",{class:(open?"":"ghost ")+"lockbtn",type:"button","aria-pressed":open?"true":"false"},open?"Done editing":"Edit copy");
     lockBtn.onclick=()=>{const nowOpen=!unlocked.has(uk);if(nowOpen)unlocked.add(uk);else unlocked.delete(uk);lockBtn.textContent=nowOpen?"Done editing":"Edit copy";lockBtn.className=(nowOpen?"":"ghost ")+"lockbtn";lockBtn.setAttribute("aria-pressed",nowOpen?"true":"false");fieldEls.forEach(([ta,rb])=>{ta.readOnly=!nowOpen;if(rb)rb.hidden=!nowOpen});if(nowOpen&&fieldEls[0])fieldEls[0][0].focus()};
-    const art=el("article",{class:"post"},el("div",{class:"post-head"},el("div",{style:"display:grid;gap:2px"},el("span",{class:"kind"},p.platform||""),el("strong",{},p.label)),lockBtn));
+    const isAp=approvedFor(it,p.key);const apBtn=el("button",{class:"appbtn",type:"button","aria-pressed":isAp?"true":"false",onclick:()=>{if(document.activeElement?.blur)document.activeElement.blur();setApproved(it,p,!isAp)}},isAp?"✓ Approved":"Approve");
+    const art=el("article",{class:"post"+(isAp?" approved":"")},el("div",{class:"post-head"},el("div",{style:"display:grid;gap:2px"},el("span",{class:"kind"},p.platform||""),el("strong",{},p.label)),el("div",{class:"head-btns"},lockBtn,apBtn)));
     if(p.images?.length)art.append(el("div",{style:"display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px"},...p.images.map(im=>encImg(im.file,p.label))));
     if(p.video&&p.key.startsWith("reel"))art.append(player(p.video,"Play the video"));
     for(const f of p.fields||[]){const ex=editFor(it.id,p.key,f.label);const ta=el("textarea",{"aria-label":p.label+": "+f.label,rows:Math.min(14,Math.max(3,Math.ceil((ex?ex.text:f.value).length/70)+ (ex?ex.text:f.value).split("\n").length))});ta.value=ex?ex.text:f.value;ta.readOnly=!open;if(ex&&ex.text!==f.value)ta.classList.add("changed");
@@ -221,9 +231,11 @@ function renderDetail(){const it=items.find(x=>x.id===selId);$("#detailEmpty").h
     P.append(art)}
   D.append(P);
   const d=doneFor(it.id);const note=el("textarea",{rows:2,placeholder:"Anything Emily should know? (optional)","aria-label":"Note to Emily"});
-  D.append(el("div",{class:"sendback"},el("strong",{},d?"Sent back to Emily "+fmt(d.at):"Finished editing this video?"),d?null:note,
-    el("button",{class:"b-primary",type:"button",onclick:async()=>{if(!myName){$("#myName").focus();toast("Add your name at the top first");return}
+  const tot=(it.pieces||[]).length,ap=(it.pieces||[]).filter(p=>approvedFor(it,p.key)).length;const warn=el("div",{class:"sendwarn",hidden:true},(tot-ap)+" of "+tot+" posts aren't approved yet. Send back anyway?");let warned=false;
+  D.append(el("div",{class:"sendback"},el("strong",{},d?"Sent back to Emily "+fmt(d.at):"Finished editing this video?"),el("span",{class:"sub"},ap+" of "+tot+" posts approved"),d?null:note,warn,
+    el("button",{class:"b-primary",type:"button",onclick:async e=>{if(!myName){$("#myName").focus();toast("Add your name at the top first");return}
       if(document.activeElement?.blur)document.activeElement.blur();
+      if(ap<tot&&!warned){warned=true;warn.hidden=false;e.currentTarget.textContent="Send back anyway";return}
       try{const j=await api({action:"amy_done",videoId:it.id,name:myName,note:note.value});status=j.status||status;toast("Sent back to Emily");renderAll()}catch{toast("Couldn't send. Try again.")}}},d?"Send back again":"Send back to Emily")))}
 </script>
 </body>

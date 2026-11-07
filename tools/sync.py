@@ -221,18 +221,23 @@ def amy_sync(acode, videos, tabs, updates, asset_file, now):
     for vid, rec in videos.items():
         mine = [x for x in edits if x.get("videoId") == vid]
         if not mine and vid not in done: continue
-        ae = {}
+        ae = {}; appr = {}
+        sent_at = rec["data"].get("amySentAt") or 0
         for x in mine:
+            if x.get("field") == "__approved":
+                if num(x.get("at")) > sent_at:
+                    appr[x.get("pieceKey", "")] = {"yes": x.get("text") == "yes", "by": x.get("name", ""), "at": num(x.get("at"))}
+                continue
             try: path = json.loads(x.get("path") or "[]")
             except Exception: path = []
             ae.setdefault(x.get("pieceKey", ""), []).append({"label": x.get("field", ""), "path": path, "text": x.get("text", ""), "note": x.get("note", ""), "by": x.get("name", ""), "at": num(x.get("at"))})
-        d = {"amyEdits": ae}
+        d = {"amyEdits": ae, "amyApproved": [{"key": k, "by": a["by"], "at": a["at"]} for k, a in appr.items() if a["yes"]]}
         v = rec["data"]
         if vid in done and v.get("amyState") == "sent" and num(done[vid].get("done_at")) > (v.get("amySentAt") or 0):
             dn = done[vid]; d.update({"amyState": "back", "amyBackAt": num(dn.get("done_at")), "amyBackNote": dn.get("note", "")})
             ps = dict(v.get("pieceStatus") or {})
             for k in ps:
-                if ps[k] in ("Draft", "With Amy"): ps[k] = "Amy edits back"
+                if ps[k] in ("Draft", "With Amy"): ps[k] = "Amy approved" if (appr.get(k) or {}).get("yes") else "Amy edits back"
             d["pieceStatus"] = ps; d["status"] = "Ready for AARP"
         u = next((u for u in updates if u["doc_id"] == vid), None)
         if u: u["data"].update(d)
