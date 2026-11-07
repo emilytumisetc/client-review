@@ -81,6 +81,17 @@ a{color:var(--pink)}
 .step.ok{background:var(--ok-soft);color:var(--ok)} .step.bad{background:var(--bad-soft);color:var(--bad)}
 .actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .comments{display:grid;gap:8px}
+.photos{display:grid;gap:10px;border:1px dashed var(--line);border-radius:12px;padding:12px 14px}
+.photos-head{display:grid;gap:2px}
+.photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,160px));gap:10px}
+.photo{margin:0;display:grid;gap:6px;align-content:start;justify-items:start}
+.photo img{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
+.photos input:not([type=file]){flex:1;min-width:180px}
+label.btn{display:inline-flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-weight:600;font-size:14px;background:var(--panel)}
+label.btn:hover{border-color:var(--muted)}
+.sr-file{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+label.btn:focus-within{outline:2px solid var(--pink);outline-offset:2px}
+label.btn.busy{opacity:.6;pointer-events:none}
 .cmt{font-size:14px;background:var(--bg);border-radius:10px;padding:8px 12px}
 .cmt .who{font-weight:600;font-size:13px} .cmt .when{color:var(--muted);font-size:12px}
 .empty{padding:48px 20px;text-align:center;color:var(--muted)}
@@ -164,7 +175,7 @@ const ANALYTICS_FILE = "analytics.enc.json";
 const $=s=>document.querySelector(s);
 const el=(tag,attrs={},...kids)=>{const n=document.createElement(tag);for(const[k,v]of Object.entries(attrs||{})){if(k==="class")n.className=v;else if(k==="text")n.textContent=v;else if(k.startsWith("on"))n.addEventListener(k.slice(2),v);else if(v!==false&&v!=null)n.setAttribute(k,v===true?"":v)}for(const c of kids.flat()){if(c==null||c===false)continue;n.append(c.nodeType?c:document.createTextNode(String(c)))}return n};
 const store={get:k=>{try{return localStorage.getItem(k)||""}catch{return""}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch{}}};
-let code="",items=[],analytics=null,decisions={},comments=[],selId=null,role=store.get("role"),myName=store.get("name");
+let code="",items=[],analytics=null,decisions={},comments=[],photos=[],selId=null,role=store.get("role"),myName=store.get("name");
 function toast(m){const t=el("div",{class:"toast",role:"status",text:m});document.body.append(t);setTimeout(()=>t.remove(),2400)}
 async function copy(t){try{await navigator.clipboard.writeText(t);toast("Copied")}catch{toast("Select the text to copy it")}}
 const fmt=ts=>ts?new Date(ts).toLocaleString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}):"";
@@ -194,7 +205,7 @@ async function decryptFile(url,pass){const r=await fetch(url+"?t="+Date.now(),{c
 
 // ---- backend ----
 async function api(body){if(!API_URL)throw{code:"no_api"};const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({...body,code})});const j=await r.json();if(!j.ok)throw{code:j.error||"error"};return j}
-async function refresh(){try{const j=await api({action:"load"});decisions=j.decisions||{};comments=j.comments||[];renderAll()}catch(e){if(e.code==="no_api")return}}
+async function refresh(){try{const j=await api({action:"load"});decisions=j.decisions||{};comments=j.comments||[];photos=j.photos||[];renderAll()}catch(e){if(e.code==="no_api")return}}
 
 // ---- gate ----
 $("#gate").addEventListener("submit",async e=>{e.preventDefault();const pass=$("#passcode").value.trim().toLowerCase().replace(/\s+/g,"");
@@ -224,6 +235,24 @@ async function decide(v,p,stage,status,note){if(!myName){$("#myName").focus();to
 async function addComment(v,p,text){if(!text.trim())return;if(!myName){$("#myName").focus();toast("Add your name at the top first");return}
   try{const j=await api({action:"comment",videoId:v,pieceKey:p,text,name:myName,role});comments=j.comments||comments;renderAll();toast("Comment added")}catch{toast("Couldn't add the comment.")}}
 
+function shrink(file,max,q){return new Promise((res,rej)=>{const u=URL.createObjectURL(file);const im=new Image();im.onload=()=>{const k=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight));const c=document.createElement("canvas");c.width=Math.round(im.naturalWidth*k);c.height=Math.round(im.naturalHeight*k);const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL("image/jpeg",q).split(",")[1])};im.onerror=()=>{URL.revokeObjectURL(u);rej({code:"bad_image"})};im.src=u})}
+let uploading=null;
+async function uploadPhoto(v,p,file,note){if(!file)return;if(!myName){$("#myName").focus();toast("Add your name at the top first");return}
+  if(!/^image\//.test(file.type)){toast("Choose a photo (JPG or PNG).");return}
+  if(file.size>40*1024*1024){toast("That photo is too large. Try one under 40 MB.");return}
+  uploading=v+"--"+p;renderDetail(true);
+  try{const data=await shrink(file,3000,0.9),thumb=await shrink(file,480,0.8);
+    const j=await api({action:"photo",videoId:v,pieceKey:p,data,thumb,type:"image/jpeg",fileName:file.name,note:note||"",name:myName,role});photos=j.photos||photos;toast("Photo sent to Emily")}
+  catch(e){toast(e.code==="no_api"?"Uploads aren't switched on yet.":e.code==="bad_image"?"That file couldn't be read as a photo.":e.code==="unknown_action"?"Uploads aren't switched on yet. Emily is finishing setup.":"Couldn't upload. Check your connection and try again.")}
+  finally{uploading=null;renderDetail(true)}}
+async function removePhoto(id){try{const j=await api({action:"photo_remove",id});photos=j.photos||photos;renderDetail(true);toast("Photo removed")}catch{toast("Couldn't remove the photo.")}}
+function photoBox(it,p){const mine=photos.filter(x=>x.videoId===it.id&&x.pieceKey===p.key).sort((a,b)=>a.at-b.at);const busy=uploading===it.id+"--"+p.key;
+  const note=el("input",{placeholder:"Note about the photo (optional)","aria-label":"Note about the photo for "+p.label});
+  const inp=el("input",{type:"file",accept:"image/*",class:"sr-file",onchange:e=>uploadPhoto(it.id,p.key,e.target.files[0],note.value)});
+  return el("div",{class:"photos"},el("div",{class:"photos-head"},el("b",{},"Have a photo you'd like to use?"),el("span",{class:"sub"},"Upload it here and Emily will design it into this post.")),
+    mine.length?el("div",{class:"photo-grid"},...mine.map(x=>el("figure",{class:"photo"},x.thumb?el("img",{src:x.thumb,alt:"Photo from "+(x.by||"AARP")}):el("div",{class:"vph"},"Photo"),el("figcaption",{class:"sub"},(x.by||"Someone")+" · "+fmt(x.at)+(x.note?" · “"+x.note+"”":"")),(x.by===myName||role==="etc")?el("button",{class:"ghost",onclick:()=>removePhoto(x.id)},"Remove"):null))):null,
+    el("div",{style:"display:flex;gap:8px;flex-wrap:wrap"},note,el("label",{class:"btn"+(busy?" busy":"")},busy?"Uploading…":"Upload a photo",inp)))}
+
 // ---- render: review ----
 function renderAll(){renderTally();renderList();renderDetail();$("#etcBar").hidden=role!=="etc";if(!$("#viewStats").hidden)renderStats()}
 function renderTally(){const all=items.flatMap(it=>(it.pieces||[]).map(p=>pieceState(it.id,p.key)));const c=k=>all.filter(x=>x===k).length;
@@ -232,8 +261,8 @@ function renderList(){const L=$("#list");L.replaceChildren();if(!items.length){L
   for(const it of items){const n=(it.pieces||[]).length;L.append(el("button",{class:"vid","aria-current":it.id===selId?"true":"false",onclick:()=>select(it.id)},el("span",{class:"t"},it.title),el("span",{style:"display:flex;gap:8px;flex-wrap:wrap;align-items:center"},pill(videoState(it)),el("span",{class:"sub"},n+" post"+(n===1?"":"s")))))}}
 function select(id){selId=id;document.body.classList.toggle("has-sel",!!id);try{history.replaceState(null,"",id?"#"+id:location.pathname)}catch{}renderList();renderDetail()}
 function stepBox(d,label){if(!d)return el("div",{class:"step"},el("b",{},label),"Waiting");return el("div",{class:"step "+(d.status==="approved"?"ok":"bad")},el("b",{},label+(d.status==="approved"?": approved":": changes requested")),[d.by,fmt(d.at)].filter(Boolean).join(" · "),d.note?el("span",{},"“"+d.note+"”"):null)}
-function renderDetail(){const it=items.find(x=>x.id===selId);$("#detailEmpty").hidden=!!it;const D=$("#detail");D.hidden=!it;if(!it)return;
-  if(D.contains(document.activeElement)&&document.activeElement.matches("textarea,input"))return;
+function renderDetail(force){const it=items.find(x=>x.id===selId);$("#detailEmpty").hidden=!!it;const D=$("#detail");D.hidden=!it;if(!it)return;
+  if(!force&&D.contains(document.activeElement)&&document.activeElement.matches("textarea,input"))return;
   D.replaceChildren(el("div",{style:"display:grid;gap:8px"},el("button",{class:"ghost back",onclick:()=>select(null)},"← All videos"),el("h2",{},it.title),
     el("div",{class:"meta"},pill(videoState(it)),it.videoUrl?el("a",{href:it.videoUrl,target:"_blank",rel:"noopener"},"Watch the full video"):null,it.graphicsUrl?el("a",{href:it.graphicsUrl,target:"_blank",rel:"noopener"},"View the graphics"):null)));
   {const vc=videoCard(it);if(vc)D.append(vc)}
@@ -255,6 +284,7 @@ function renderDetail(){const it=items.find(x=>x.id===selId);$("#detailEmpty").h
       p.video?playCard(p.video,p.poster||it.poster,p.label,p.linkLabel||"Play"):(p.link?el("a",{href:p.link,target:"_blank",rel:"noopener"},p.linkLabel||"Open"):null),
       p.images?.length?el("div",{style:"display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px"},...p.images.map(im=>el("figure",{style:"margin:0;display:grid;gap:6px"},encImg(im.file,im.alt),im.caption?el("figcaption",{class:"sub"},im.caption):null))):null,
       ...(p.fields||[]).map(f=>el("div",{class:"field"},f.label?el("label",{},f.label):null,el("div",{class:"copytext"},f.value||""))),
+      (p.group==="Static posts"||/^(stat|quote|carousel|post-)/.test(p.key))?photoBox(it,p):null,
       el("div",{class:"steps"},stepBox(d.reviewer,"AARP reviewer"),stepBox(d.deb,"Deb")),stage?noteBox:null,acts,
       el("div",{class:"comments"},...cs.map(c=>el("div",{class:"cmt"},el("span",{class:"who"},c.by||roleName(c.role)||"Someone")," ",el("span",{class:"when"},fmt(c.at)),el("div",{},c.text))),
         el("div",{style:"display:flex;gap:8px"},cIn,el("button",{onclick:()=>addComment(it.id,p.key,cIn.value)},"Post")))))}

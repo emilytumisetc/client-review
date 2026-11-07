@@ -211,6 +211,7 @@ def main():
     tabs = parse_sheet(open(a.sheet).read())
     dec = {r.get("key"): r for r in tabs.get("Decisions", []) if r.get("key")}
     cmts = tabs.get("Comments", [])
+    phos = [x for x in tabs.get("Photos", []) if x.get("id") and not x.get("removed")]
     for vid, it in items.items():
         if vid not in videos or it.get("hidden"): continue
         cs, pstat = {}, {}
@@ -220,6 +221,8 @@ def main():
             if r.get("reviewer_status"): entry["reviewer"] = {"status": r["reviewer_status"], "note": r.get("reviewer_note", ""), "by": r.get("reviewer_name", ""), "at": num(r.get("reviewer_at"))}
             if r.get("deb_status"): entry["deb"] = {"status": r["deb_status"], "note": r.get("deb_note", ""), "by": r.get("deb_name", ""), "at": num(r.get("deb_at"))}
             entry["comments"] = [{"by": x.get("name", ""), "text": x.get("text", ""), "at": num(x.get("at"))} for x in cmts if x.get("videoId") == vid and x.get("pieceKey") == p["key"]]
+            ph = [{"by": x.get("name", ""), "at": num(x.get("at")), "note": x.get("note", ""), "url": x.get("fileUrl", "")} for x in phos if x.get("videoId") == vid and x.get("pieceKey") == p["key"]]
+            if ph: entry["photos"] = ph
             cs[p["key"]] = entry
             if entry.get("deb", {}).get("status") == "approved": pstat[p["key"]] = "Deb approved"
             elif entry.get("reviewer", {}).get("status") == "approved": pstat[p["key"]] = "Reviewer approved"
