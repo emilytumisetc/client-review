@@ -97,6 +97,9 @@ th{font-size:12px;color:var(--muted);font-weight:600} td.n,th.n{text-align:right
 .vcard .play{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);width:64px;height:64px;border-radius:50%;background:rgb(255 255 255 / .92);color:#4A2459;display:grid;place-items:center;font-size:24px;padding-left:4px;box-shadow:0 6px 20px rgb(0 0 0 / .25)}
 .vcard .vlabel{position:absolute;left:0;right:0;bottom:0;padding:10px 14px;background:linear-gradient(transparent,rgb(20 10 30 / .85));font-weight:600;font-size:14px}
 .vcard:hover .play{transform:translate(-50%,-50%) scale(1.06)}
+.vcard{cursor:pointer;border-width:1px;padding:0;font:inherit;text-align:left;width:100%}
+.player{max-width:340px;width:100%;aspect-ratio:9/16;border:0;border-radius:14px;background:#000;display:block}
+.vwrap{display:grid;gap:6px;justify-items:start}
 .back{display:none}
 @media (max-width:880px){
   .desk{grid-template-columns:1fr} .list{position:static}
@@ -174,9 +177,14 @@ async function decryptBytes(url,pass){const r=await fetch(url+"?t="+Date.now(),{
   const key=await crypto.subtle.deriveKey({name:"PBKDF2",salt:b64(e.salt),iterations:e.iter,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["decrypt"]);
   return new Blob([await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(e.iv)},key,b64(e.ct))],{type:e.type||"image/jpeg"})}
 const imgCache={};
-function videoCard(it){if(!it.videoUrl)return null;const a=el("a",{href:it.videoUrl,target:"_blank",rel:"noopener",class:"vcard","aria-label":"Watch the full video: "+it.title});
-  if(it.poster){const img=el("img",{alt:"Still from "+it.title});(imgCache[it.poster]||(imgCache[it.poster]=decryptBytes(it.poster,code).then(b=>URL.createObjectURL(b)))).then(u=>{img.src=u}).catch(()=>{});a.append(img)}else a.append(el("div",{class:"vph"},it.title));
-  a.append(el("span",{class:"play","aria-hidden":"true"},"▶"),el("span",{class:"vlabel"},"Watch the full video"+(it.duration?" · "+it.duration:"")));return a}
+const driveId=u=>{const m=String(u||"").match(/\/d\/([\w-]{20,})/)||String(u||"").match(/[?&]id=([\w-]{20,})/);return m?m[1]:""};
+function posterImg(file,alt){const img=el("img",{alt});(imgCache[file]||(imgCache[file]=decryptBytes(file,code).then(b=>URL.createObjectURL(b)))).then(u=>{img.src=u}).catch(()=>{});return img}
+function playCard(url,poster,title,label){if(!url)return null;const id=driveId(url);const wrap=el("div",{class:"vwrap"});
+  const card=el("button",{class:"vcard",type:"button","aria-label":"Play: "+title});
+  card.append(poster?posterImg(poster,"Still from "+title):el("div",{class:"vph"},title),el("span",{class:"play","aria-hidden":"true"},"▶"),el("span",{class:"vlabel"},label));
+  card.onclick=()=>{if(!id){window.open(url,"_blank","noopener");return}const f=el("iframe",{class:"player",src:"https://drive.google.com/file/d/"+id+"/preview",allow:"autoplay; fullscreen",allowfullscreen:true,title:title});card.replaceWith(f)};
+  wrap.append(card,el("a",{href:url,target:"_blank",rel:"noopener",class:"sub"},"Open in a new tab"));return wrap}
+function videoCard(it){return playCard(it.videoUrl,it.poster,it.title,"Play the full video"+(it.duration?" · "+it.duration:""))}
 function encImg(file,alt){const img=el("img",{alt:alt||"Graphic",style:"width:100%;max-width:420px;border-radius:12px;border:1px solid var(--line);background:var(--soft);aspect-ratio:4/5;object-fit:cover"});
   (imgCache[file]||(imgCache[file]=decryptBytes(file,code).then(b=>URL.createObjectURL(b)))).then(u=>{img.src=u}).catch(()=>{img.alt="Image couldn't load"});return img}
 async function decryptFile(url,pass){const r=await fetch(url+"?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw{code:"missing"};const e=await r.json();
@@ -244,7 +252,7 @@ function renderDetail(){const it=items.find(x=>x.id===selId);$("#detailEmpty").h
     const cIn=el("input",{id:"cmt-"+p.key,placeholder:"Add a comment","aria-label":"Comment on "+p.label,onkeydown:e=>{if(e.key==="Enter"){e.preventDefault();addComment(it.id,p.key,cIn.value)}}});
     P.append(el("article",{class:"post s-"+st},
       el("div",{class:"post-head"},el("div",{style:"display:grid;gap:2px"},el("span",{class:"kind"},p.platform||""),el("strong",{},p.label)),el("div",{class:"actions"},pill(st),el("button",{class:"ghost",onclick:()=>copy((p.fields||[]).map(f=>f.value).join("\n\n"))},"Copy"))),
-      p.link?el("a",{href:p.link,target:"_blank",rel:"noopener"},p.linkLabel||"Open"):null,
+      p.video?playCard(p.video,p.poster||it.poster,p.label,p.linkLabel||"Play"):(p.link?el("a",{href:p.link,target:"_blank",rel:"noopener"},p.linkLabel||"Open"):null),
       p.images?.length?el("div",{style:"display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px"},...p.images.map(im=>el("figure",{style:"margin:0;display:grid;gap:6px"},encImg(im.file,im.alt),im.caption?el("figcaption",{class:"sub"},im.caption):null))):null,
       ...(p.fields||[]).map(f=>el("div",{class:"field"},f.label?el("label",{},f.label):null,el("div",{class:"copytext"},f.value||""))),
       el("div",{class:"steps"},stepBox(d.reviewer,"AARP reviewer"),stepBox(d.deb,"Deb")),stage?noteBox:null,acts,
