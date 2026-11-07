@@ -93,7 +93,7 @@ th{font-size:12px;color:var(--muted);font-weight:600} td.n,th.n{text-align:right
 .foot{color:var(--muted);font-size:12.5px;text-align:center;padding-top:8px}
 .vcard{position:relative;display:block;max-width:340px;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--plum);text-decoration:none;color:#fff}
 .vcard img{display:block;width:100%;height:auto}
-.vph{aspect-ratio:9/12;display:grid;place-items:center;padding:24px;text-align:center;font-family:var(--f-display);font-size:22px;color:#fff;background:linear-gradient(160deg,#4A2459,#A9479C)}
+.vph{aspect-ratio:9/12;display:grid;place-items:start center;padding:36px 24px;text-align:center;font-family:var(--f-display);font-size:22px;color:#fff;background:linear-gradient(160deg,#4A2459,#A9479C)}
 .vcard .play{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);width:64px;height:64px;border-radius:50%;background:rgb(255 255 255 / .92);color:#4A2459;display:grid;place-items:center;font-size:24px;padding-left:4px;box-shadow:0 6px 20px rgb(0 0 0 / .25)}
 .vcard .vlabel{position:absolute;left:0;right:0;bottom:0;padding:10px 14px;background:linear-gradient(transparent,rgb(20 10 30 / .85));font-weight:600;font-size:14px}
 .vcard:hover .play{transform:translate(-50%,-50%) scale(1.06)}
@@ -251,7 +251,7 @@ function renderDetail(){const it=items.find(x=>x.id===selId);$("#detailEmpty").h
     const cs=comments.filter(c=>c.videoId===it.id&&c.pieceKey===p.key).sort((a,b)=>a.at-b.at);
     const cIn=el("input",{id:"cmt-"+p.key,placeholder:"Add a comment","aria-label":"Comment on "+p.label,onkeydown:e=>{if(e.key==="Enter"){e.preventDefault();addComment(it.id,p.key,cIn.value)}}});
     P.append(el("article",{class:"post s-"+st},
-      el("div",{class:"post-head"},el("div",{style:"display:grid;gap:2px"},el("span",{class:"kind"},p.platform||""),el("strong",{},p.label)),el("div",{class:"actions"},pill(st),el("button",{class:"ghost",onclick:()=>copy((p.fields||[]).map(f=>f.value).join("\n\n"))},"Copy"))),
+      el("div",{class:"post-head"},el("div",{style:"display:grid;gap:2px"},el("span",{class:"kind"},p.platform||""),el("strong",{},p.label),p.date?el("span",{class:"sub"},"Scheduled for "+new Date(p.date+"T12:00").toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"})+(p.time?" at "+new Date("2000-01-01T"+p.time).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"}):"")):null),el("div",{class:"actions"},pill(st),el("button",{class:"ghost",onclick:()=>copy((p.fields||[]).map(f=>f.value).join("\n\n"))},"Copy"))),
       p.video?playCard(p.video,p.poster||it.poster,p.label,p.linkLabel||"Play"):(p.link?el("a",{href:p.link,target:"_blank",rel:"noopener"},p.linkLabel||"Open"):null),
       p.images?.length?el("div",{style:"display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px"},...p.images.map(im=>el("figure",{style:"margin:0;display:grid;gap:6px"},encImg(im.file,im.alt),im.caption?el("figcaption",{class:"sub"},im.caption):null))):null,
       ...(p.fields||[]).map(f=>el("div",{class:"field"},f.label?el("label",{},f.label):null,el("div",{class:"copytext"},f.value||""))),
@@ -264,7 +264,7 @@ function renderDetail(){const it=items.find(x=>x.id===selId);$("#detailEmpty").h
 const csvCell=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
 $("#btnCsv").onclick=()=>{const rows=[["Video","Post","Platform","Post copy","Link","Media","Publish date","Publish time"]];
   for(const it of items)for(const p of it.pieces||[]){if(pieceState(it.id,p.key)!=="done")continue;
-    for(const f of p.fields||[]){const plat=f.label&&/linkedin|instagram/i.test(f.label)?f.label.replace(/ caption/i,""):p.platform;rows.push([it.title,p.label,plat,f.value,p.link||it.videoUrl||"",it.graphicsUrl||"","",""])}}
+    for(const f of p.fields||[]){const plat=f.label&&/linkedin|instagram/i.test(f.label)?f.label.replace(/ caption/i,""):p.platform;if(/on-screen|where the clip|on the graphic|slides|sticker/i.test(f.label||""))continue;rows.push([it.title,p.label,plat,f.value,p.video||p.link||it.videoUrl||"",it.graphicsUrl||"",p.date||"",p.time||""])}}
   if(rows.length===1){toast("No posts are fully approved yet");return}
   const blob=new Blob([rows.map(r=>r.map(csvCell).join(",")).join("\r\n")],{type:"text/csv"});const a=el("a",{href:URL.createObjectURL(blob),download:"deb-approved-posts.csv"});document.body.append(a);a.click();a.remove();toast((rows.length-1)+" posts exported")};
 
