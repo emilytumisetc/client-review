@@ -104,7 +104,7 @@ th{font-size:12px;color:var(--muted);font-weight:600} td.n,th.n{text-align:right
   <div class="sub">Emily Tumis Creative</div>
   <h1>Deb Whitman Content Review</h1>
   <label for="passcode" class="sub">Enter the passcode Emily sent you.</label>
-  <input id="passcode" type="password" autocomplete="current-password" required>
+  <input id="passcode" type="password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" required>
   <button class="b-primary" type="submit" id="gateBtn">Open</button>
   <div class="sub" id="gateMsg" role="alert"></div>
 </form>
@@ -173,8 +173,9 @@ async function api(body){if(!API_URL)throw{code:"no_api"};const r=await fetch(AP
 async function refresh(){try{const j=await api({action:"load"});decisions=j.decisions||{};comments=j.comments||[];renderAll()}catch(e){if(e.code==="no_api")return}}
 
 // ---- gate ----
-$("#gate").addEventListener("submit",async e=>{e.preventDefault();const pass=$("#passcode").value.trim();$("#gateBtn").disabled=true;$("#gateMsg").textContent="Opening…";
-  try{await openReview(pass);store.set("pc",pass)}catch(err){$("#gateMsg").textContent=err.code==="bad_code"?"That passcode didn't work. Check the one Emily sent you.":"The review page couldn't load. Try again in a minute."}finally{$("#gateBtn").disabled=false}});
+$("#gate").addEventListener("submit",async e=>{e.preventDefault();const pass=$("#passcode").value.trim().toLowerCase().replace(/\s+/g,"");
+  if(!window.crypto||!crypto.subtle){$("#gateMsg").textContent="This page needs a secure connection. Open https://"+location.host+location.pathname+" (with https at the start).";return}$("#gateBtn").disabled=true;$("#gateMsg").textContent="Opening…";
+  try{await openReview(pass);store.set("pc",pass)}catch(err){$("#gateMsg").textContent=err.code==="bad_code"?"That passcode didn't work. Check the one Emily sent you.":err.code==="missing"?"The review content isn't published yet. Try again in a few minutes.":"The review page couldn't load ("+(err.code||err.message||"error")+"). Try again in a minute."}finally{$("#gateBtn").disabled=false}});
 async function openReview(pass){const data=await decryptFile(CONTENT_FILE,pass);code=pass;items=(data.items||[]).filter(x=>!x.hidden).sort((a,b)=>(a.order||0)-(b.order||0));
   try{analytics=await decryptFile(ANALYTICS_FILE,pass)}catch{analytics=null}
   $("#gate").hidden=true;$("#app").hidden=false;const h=location.hash.slice(1);if(h&&items.some(i=>i.id===h))select(h);renderAll();refresh();setInterval(()=>{if(document.visibilityState==="visible")refresh()},30000)}
