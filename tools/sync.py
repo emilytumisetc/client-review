@@ -67,6 +67,7 @@ def piece_keys(c, g):
     keys += [f"reel{i}" for i, _ in enumerate(c.get("reels") or [])]
     keys += [f"story{i}" for i, _ in enumerate(c.get("stories") or [])]
     if c.get("statGraphic") and g.get("stat", True): keys.append("stat")
+    if c.get("statGraphic2") and g.get("stat2", True): keys.append("stat2")
     if c.get("quoteCard") and g.get("quote", True): keys.append("quote")
     if (c.get("carousel") or {}).get("slides") and g.get("carousel", False): keys.append("carousel")
     return keys
@@ -101,7 +102,9 @@ def build_piece(v, k, img_for, poster_for=None):
         # Client-facing: no internal angle notes or cut/fact-check notes
         p.update(group="Reels", platform="Instagram Reel", label=f"Reel {int(k[4:])+1}",
                  fields=[{"label": "On-screen text", "value": r.get("onScreenText", "")}, {"label": "Caption", "value": r.get("caption", "")}])
-        if v.get("driveUrl"): p["video"] = v["driveUrl"]; p["linkLabel"] = "Play the full video"
+        if r.get("videoUrl"): p["video"] = r["videoUrl"]; p["linkLabel"] = "Play the clip"
+        elif v.get("driveUrl"): p["video"] = v["driveUrl"]; p["linkLabel"] = "Play the full video"
+        p["fields"] = [f for f in p["fields"] if f["value"]]
         cp = (v.get("clipPosters") or {}).get(str(r.get("opusClipId") or ""))
         if cp and cp.get("id") and poster_for:
             f = poster_for(cp["id"], f"{v.get('_id','v')}-{k}-poster")
@@ -112,9 +115,11 @@ def build_piece(v, k, img_for, poster_for=None):
         if st.get("type"):
             sticker = f"{st['type'].title()} sticker: {st.get('prompt','')}" + (f" ({' / '.join(st.get('options') or [])})" if st.get("options") else "")
         p.update(group="Stories", platform="Instagram Story", label=f"Story frame {int(k[5:])+1}", fields=[{"label": "Frame text", "value": s.get("text", "")}] + ([{"label": "Sticker", "value": sticker}] if sticker else []))
-    elif k == "stat":
-        s = c["statGraphic"]
-        p.update(group="Static posts", platform="LinkedIn and Instagram", label="Stat graphic", fields=[{"label": "On the graphic", "value": "\n".join(x for x in [s.get("kicker",""), s.get("headline",""), s.get("supportingLine","")] if x)}, {"label": "Caption", "value": s.get("caption", "")}])
+    elif k in ("stat", "stat2"):
+        s = c["statGraphic" if k == "stat" else "statGraphic2"]
+        caps = ([{"label": "LinkedIn caption", "value": s.get("caption", "")}, {"label": "Instagram caption", "value": s.get("captionInstagram", "")}]
+                if s.get("captionInstagram") is not None else [{"label": "Caption", "value": s.get("caption", "")}])
+        p.update(group="Static posts", platform="LinkedIn and Instagram", label="Stat graphic" + (" 2" if k == "stat2" else ""), fields=[{"label": "On the graphic", "value": "\n".join(x for x in [s.get("kicker",""), s.get("headline",""), s.get("supportingLine","")] if x)}] + caps)
     elif k == "quote":
         q = c["quoteCard"]
         p.update(group="Static posts", platform="LinkedIn and Instagram", label="Quote card", fields=[{"label": "On the graphic", "value": "“" + q.get("quote", "") + "”"}, {"label": "Caption", "value": q.get("caption", "")}])
@@ -140,10 +145,14 @@ def amy_fields(c, k):
         if (st.get("sticker") or {}).get("prompt"):
             f.append({"label": "Sticker question", "path": ["stories", i, "sticker", "prompt"], "value": st["sticker"]["prompt"]})
         return f
-    if k == "stat":
-        g = c["statGraphic"]
-        return [{"label": "On the graphic", "path": ["statGraphic", "headline"], "value": g.get("headline", "")},
-                {"label": "Caption", "path": ["statGraphic", "caption"], "value": g.get("caption", "")}]
+    if k in ("stat", "stat2"):
+        prop = "statGraphic" if k == "stat" else "statGraphic2"; g = c[prop]
+        if g.get("captionInstagram") is not None:
+            return [{"label": "On the graphic", "path": [prop, "headline"], "value": g.get("headline", "")},
+                    {"label": "LinkedIn caption", "path": [prop, "caption"], "value": g.get("caption", "")},
+                    {"label": "Instagram caption", "path": [prop, "captionInstagram"], "value": g.get("captionInstagram", "")}]
+        return [{"label": "On the graphic", "path": [prop, "headline"], "value": g.get("headline", "")},
+                {"label": "Caption", "path": [prop, "caption"], "value": g.get("caption", "")}]
     if k == "quote":
         q = c["quoteCard"]
         return [{"label": "Quote on the graphic", "path": ["quoteCard", "quote"], "value": q.get("quote", "")},
@@ -159,7 +168,7 @@ def amy_fields(c, k):
     return []
 
 AMY_LABEL = {"linkedin": ("Long video", "LinkedIn", "Long video caption"), "instagram": ("Long video", "Instagram", "Long video caption"),
-             "stat": ("Static posts", "LinkedIn and Instagram", "Stat graphic"), "quote": ("Static posts", "LinkedIn and Instagram", "Quote card"),
+             "stat": ("Static posts", "LinkedIn and Instagram", "Stat graphic"), "stat2": ("Static posts", "LinkedIn and Instagram", "Stat graphic 2"), "quote": ("Static posts", "LinkedIn and Instagram", "Quote card"),
              "carousel": ("Static posts", "LinkedIn and Instagram", "Carousel")}
 
 def amy_sync(acode, videos, tabs, updates, asset_file, now):
@@ -188,7 +197,8 @@ def amy_sync(acode, videos, tabs, updates, asset_file, now):
             p = {"key": k, "group": grp, "platform": plat, "label": lab, "fields": amy_fields(c, k)}
             imgs = [enc(im["id"], f"{vid}-{k}-{n+1}") for n, im in enumerate(x for x in gi if x.get("piece") == k)]
             if any(imgs): p["images"] = [{"file": f} for f in imgs if f]
-            if k.startswith("reel") or k in ("linkedin", "instagram"):
+            if k.startswith("reel") and (c["reels"][int(k[4:])] or {}).get("videoUrl"): p["video"] = c["reels"][int(k[4:])]["videoUrl"]
+            elif k.startswith("reel") or k in ("linkedin", "instagram"):
                 if v.get("driveUrl"): p["video"] = (v.get("longVideos") or {}).get(k) or v["driveUrl"]
             pieces.append(p)
         item = {"id": vid, "order": v.get("order", 0), "title": f"Video {v.get('order')}: {v.get('title','')}", "videoUrl": v.get("driveUrl", ""),
@@ -275,11 +285,11 @@ def main():
         keys = approved or keys
         gi = v.get("graphicsImages") or []
         def img_for(k):
-            if k not in ("stat", "quote", "carousel"): return []
+            if k not in ("stat", "stat2", "quote", "carousel"): return []
             out = []
             for n, im in enumerate(x for x in gi if x.get("piece") == k):
                 f = enc_image(im["id"], f"{vid}-{k}-{n+1}")
-                if f: out.append({"file": f, "alt": {"stat": "Stat graphic", "quote": "Quote card", "carousel": "Carousel slide"}.get(k, "Graphic")})
+                if f: out.append({"file": f, "alt": {"stat": "Stat graphic", "stat2": "Stat graphic", "quote": "Quote card", "carousel": "Carousel slide"}.get(k, "Graphic")})
                 else: missing.append(im["id"])
             return out
         def poster_for(aid, name):
