@@ -281,7 +281,7 @@ def main():
         c = v["content"]; g = {"stat": True, "quote": True, "carousel": False, **(v.get("graphics") or {})}
         ps = v.get("pieceStatus") or {}
         keys = [k for k in piece_keys(c, g) if ps.get(k) != "Skip"]
-        approved = [k for k in keys if ps.get(k) in ("ETC approved", "Reviewer approved", "Deb approved")]
+        approved = [k for k in keys if ps.get(k) in ("ETC approved", "Sent to AARP", "Reviewer approved", "Deb approved")]
         keys = approved or keys
         gi = v.get("graphicsImages") or []
         def img_for(k):
