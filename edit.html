@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>ETC Edit Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a review queue. Status summary up top, video list on the left, the open video's posts on the right, each post with its own two-step sign-off. */
+:root{
+  --bg:#F6F4F8; --panel:#FFFFFF; --ink:#1A1626; --muted:#625B70; --line:#E3DDE9; --soft:#EFEAF3;
+  --plum:#4A2459; --plum-ink:#FFFFFF; --pink:#A9479C; --pink-soft:#F6E6F3;
+  --ok:#1E7046; --ok-soft:#E2F3E9; --warn:#8F5A00; --warn-soft:#FFF0D6; --bad:#B03A2E; --bad-soft:#FBE6E3;
+  --f-display:"Young Serif", Georgia, "Times New Roman", serif;
+  --f-body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#151219; --panel:#1E1A24; --ink:#EEE9F2; --muted:#A79FB3; --line:#332C3B; --soft:#28222F;
+  --plum:#C9A2DA; --plum-ink:#1A1020; --pink:#E39BD8; --pink-soft:#3A2238;
+  --ok:#7BD3A0; --ok-soft:#173326; --warn:#F0BC6A; --warn-soft:#3A2C14; --bad:#FF9A8E; --bad-soft:#3D1E1B; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:20px}
+[hidden]{display:none!important}
+h1,h2,h3{margin:0;text-wrap:balance}
+h1{font-family:var(--f-display);font-weight:400;font-size:28px;letter-spacing:-.01em}
+h2{font-family:var(--f-display);font-weight:400;font-size:24px}
+h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:7px 14px;font-weight:600;font-size:14px}
+button:hover{border-color:var(--muted)}
+button:disabled{opacity:.5;cursor:default}
+.b-primary{background:var(--plum);border-color:var(--plum);color:var(--plum-ink)}
+.b-approve{background:var(--ok);border-color:var(--ok);color:var(--panel)}
+.b-changes{color:var(--bad);border-color:var(--bad)}
+.ghost{border-color:transparent;background:transparent;color:var(--muted);padding:5px 8px}
+:focus-visible{outline:2px solid var(--pink);outline-offset:2px}
+input,textarea,select{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 11px;width:100%}
+textarea{resize:vertical;min-height:64px}
+a{color:var(--pink)}
+.wrap{max-width:1240px;margin:0 auto;display:grid;gap:18px}
+.top{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between}
+.sub{color:var(--muted);font-size:13.5px}
+.tabs{display:flex;gap:6px;border-bottom:1px solid var(--line)}
+.tab{border:none;border-radius:0;background:none;border-bottom:2px solid transparent;color:var(--muted);padding:8px 12px}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--pink)}
+.tally{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:grid;gap:2px}
+.tile b{font-size:26px;font-variant-numeric:tabular-nums;font-weight:700}
+.tile span{font-size:13px;color:var(--muted)}
+.t-review b{color:var(--plum)} .t-deb b{color:var(--pink)} .t-changes b{color:var(--bad)} .t-done b{color:var(--ok)}
+.who-box{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13.5px}
+.who-box select,.who-box input{width:auto;padding:6px 10px}
+.desk{display:grid;grid-template-columns:320px minmax(0,1fr);gap:18px;align-items:start}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px}
+.list{padding:8px;display:grid;gap:4px;position:sticky;top:calc(env(safe-area-inset-top, 0px) + 12px)}
+.vid{width:100%;text-align:left;border:1px solid transparent;border-radius:12px;background:none;padding:10px 12px;display:grid;gap:6px;font-weight:400}
+.vid:hover{background:var(--soft)}
+.vid[aria-current="true"]{background:var(--pink-soft);border-color:var(--pink)}
+.vid .t{font-weight:600;line-height:1.3}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;border-radius:999px;padding:3px 10px;background:var(--soft);color:var(--muted);white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.p-review{color:var(--plum)} .p-deb{background:var(--pink-soft);color:var(--pink)} .p-changes{background:var(--bad-soft);color:var(--bad)} .p-done{background:var(--ok-soft);color:var(--ok)}
+.detail{padding:22px;display:grid;gap:18px;min-width:0}
+.meta{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.note{background:var(--soft);border-radius:12px;padding:12px 14px;font-size:14px}
+.posts{display:grid;gap:14px}
+.post{border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:12px;min-width:0}
+.post.s-done{border-color:var(--ok)} .post.s-changes{border-color:var(--bad)}
+.post-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}
+.kind{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--pink)}
+.field{display:grid;gap:4px;min-width:0}
+.field label{font-size:12px;font-weight:600;color:var(--muted)}
+.copytext{white-space:pre-wrap;background:var(--bg);border-radius:10px;padding:12px 14px;font-size:14.5px;line-height:1.6;overflow-wrap:anywhere}
+.steps{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.step{border-radius:10px;padding:10px 12px;background:var(--soft);font-size:13px;display:grid;gap:2px}
+.step.ok{background:var(--ok-soft);color:var(--ok)} .step.bad{background:var(--bad-soft);color:var(--bad)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.comments{display:grid;gap:8px}
+.photos{display:grid;gap:10px;border:1px dashed var(--line);border-radius:12px;padding:12px 14px}
+.photos-head{display:grid;gap:2px}
+.photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,160px));gap:10px}
+.photo{margin:0;display:grid;gap:6px;align-content:start;justify-items:start}
+.photo img{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
+.photos input:not([type=file]){flex:1;min-width:180px}
+label.btn{display:inline-flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-weight:600;font-size:14px;background:var(--panel)}
+label.btn:hover{border-color:var(--muted)}
+.sr-file{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+label.btn:focus-within{outline:2px solid var(--pink);outline-offset:2px}
+label.btn.busy{opacity:.6;pointer-events:none}
+.cmt{font-size:14px;background:var(--bg);border-radius:10px;padding:8px 12px}
+.cmt .who{font-weight:600;font-size:13px} .cmt .when{color:var(--muted);font-size:12px}
+.empty{padding:48px 20px;text-align:center;color:var(--muted)}
+.gate{max-width:420px;margin:12vh auto 0;display:grid;gap:14px;padding:28px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom, 0px));background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:14px;z-index:20}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;color:var(--muted);font-weight:600} td.n,th.n{text-align:right}
+.tbl{overflow-x:auto}
+.foot{color:var(--muted);font-size:12.5px;text-align:center;padding-top:8px}
+.vcard{position:relative;display:block;max-width:340px;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--plum);text-decoration:none;color:#fff}
+.vcard img{display:block;width:100%;height:auto}
+.vph{aspect-ratio:9/12;display:grid;place-items:start center;padding:36px 24px;text-align:center;font-family:var(--f-display);font-size:22px;color:#fff;background:linear-gradient(160deg,#4A2459,#A9479C)}
+.vcard .play{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);width:64px;height:64px;border-radius:50%;background:rgb(255 255 255 / .92);color:#4A2459;display:grid;place-items:center;font-size:24px;padding-left:4px;box-shadow:0 6px 20px rgb(0 0 0 / .25)}
+.vcard .vlabel{position:absolute;left:0;right:0;bottom:0;padding:10px 14px;background:linear-gradient(transparent,rgb(20 10 30 / .85));font-weight:600;font-size:14px}
+.vcard:hover .play{transform:translate(-50%,-50%) scale(1.06)}
+.vcard{cursor:pointer;border-width:1px;padding:0;font:inherit;text-align:left;width:100%}
+.player{max-width:340px;width:100%;aspect-ratio:9/16;border:0;border-radius:14px;background:#000;display:block}
+.vwrap{display:grid;gap:6px;justify-items:start}
+.back{display:none}
+@media (max-width:880px){
+  .desk{grid-template-columns:1fr} .list{position:static}
+  .tally{grid-template-columns:repeat(2,minmax(0,1fr))} .steps{grid-template-columns:1fr}
+  body.has-sel .listwrap{display:none} body:not(.has-sel) .detailwrap{display:none} .back{display:inline-block}
+}
+
+.amy-field{display:grid;gap:6px}
+.amy-field textarea{width:100%;min-height:90px;font:inherit;font-size:14.5px;line-height:1.55;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);resize:vertical;box-sizing:border-box}
+.amy-field textarea.changed{border-color:var(--pink);box-shadow:0 0 0 2px color-mix(in srgb,var(--pink) 25%,transparent)}
+.amy-field .orig{font-size:13px;color:var(--muted);white-space:pre-wrap}
+.saved{font-size:12.5px;color:var(--ok)}
+.sendback{display:grid;gap:8px;border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--soft)}
+</style>
+</head>
+<body>
+<form class="panel gate" id="gate">
+  <div class="sub">Emily Tumis Creative · internal</div>
+  <h1>Edit Desk</h1>
+  <label for="passcode" class="sub">Enter the ETC editor passcode.</label>
+  <input id="passcode" type="password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" required>
+  <button class="b-primary" type="submit" id="gateBtn">Open</button>
+  <div class="sub" id="gateMsg" role="alert"></div>
+</form>
+
+<div class="wrap" id="app" hidden>
+  <header class="top">
+    <div style="display:grid;gap:4px">
+      <div class="sub">Emily Tumis Creative · internal, not shared with AARP</div>
+      <h1>Edit Desk: Deb Whitman content</h1>
+      <div class="sub">Edit any caption or on-graphic text directly. Edits save as you go. When a video is done, send it back to Emily.</div>
+    </div>
+    <div class="who-box"><label for="myName">Your name</label><input id="myName" placeholder="First name" size="10"></div>
+  </header>
+  <div class="desk">
+    <aside class="panel listwrap"><div class="list" id="list"></div></aside>
+    <main class="panel detailwrap"><div class="empty" id="detailEmpty">Pick a video on the left to edit its posts.</div><div class="detail" id="detail" hidden></div></main>
+  </div>
+  <div class="foot">Emily Tumis Creative · internal editing page</div>
+</div>
+
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbzQZ-Oo8K5Iz--NQjxeH_QTN6xnqVEf7q1f7D89luZPGO2ouWle90pw67d4H6xr0_HyeQ/exec";
+const FILE = "internal.enc.json";
+const $=s=>document.querySelector(s);
+const el=(tag,attrs={},...kids)=>{const n=document.createElement(tag);for(const[k,v]of Object.entries(attrs||{})){if(k==="class")n.className=v;else if(k.startsWith("on"))n.addEventListener(k.slice(2),v);else if(v!==false&&v!=null)n.setAttribute(k,v===true?"":v)}for(const c of kids.flat()){if(c==null||c===false)continue;n.append(c.nodeType?c:document.createTextNode(String(c)))}return n};
+const store={get:k=>{try{return localStorage.getItem(k)||""}catch{return""}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch{}}};
+let code="",items=[],edits=[],status=[],selId=null,myName=store.get("amyName");
+function toast(m){const t=el("div",{class:"toast",role:"status"},m);document.body.append(t);setTimeout(()=>t.remove(),2400)}
+const fmt=ts=>ts?new Date(ts).toLocaleString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}):"";
+const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function keyFor(e,pass){const base=await crypto.subtle.importKey("raw",new TextEncoder().encode(pass),"PBKDF2",false,["deriveKey"]);return crypto.subtle.deriveKey({name:"PBKDF2",salt:b64(e.salt),iterations:e.iter,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["decrypt"])}
+async function fetchEnc(url){const r=await fetch(url+"?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw{code:"missing"};return r.json()}
+async function decryptJSON(url,pass){const e=await fetchEnc(url);try{return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(e.iv)},await keyFor(e,pass),b64(e.ct))))}catch{throw{code:"bad_code"}}}
+const imgCache={};
+function encImg(file,alt,style){const img=el("img",{alt,style:style||"width:100%;max-width:360px;border-radius:12px;border:1px solid var(--line);background:var(--soft)"});
+  (imgCache[file]||(imgCache[file]=fetchEnc(file).then(async e=>URL.createObjectURL(new Blob([await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(e.iv)},await keyFor(e,code),b64(e.ct))],{type:e.type||"image/jpeg"}))))).then(u=>{img.src=u}).catch(()=>{});return img}
+const driveId=u=>{const m=String(u||"").match(/\/d\/([\w-]{20,})/);return m?m[1]:""};
+function player(url,label){const id=driveId(url);if(!id)return url?el("a",{href:url,target:"_blank",rel:"noopener"},label):null;const b=el("button",{type:"button"},"▶ "+label);b.onclick=()=>b.replaceWith(el("iframe",{class:"player",src:"https://drive.google.com/file/d/"+id+"/preview",allow:"autoplay; fullscreen",allowfullscreen:true,title:label}));return b}
+async function api(body){const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({...body,code})});const j=await r.json();if(!j.ok)throw{code:j.error||"error"};return j}
+async function refresh(){try{const j=await api({action:"amy_load"});edits=j.edits||[];status=j.status||[];renderAll()}catch(e){if(e.code==="unknown_action"||e.code==="bad_code")toast("Saving isn't switched on yet. Emily is finishing setup.")}}
+const editFor=(v,p,f)=>edits.find(x=>x.videoId===v&&x.pieceKey===p&&x.field===f);
+const doneFor=v=>{const it=items.find(x=>x.id===v);return status.filter(s=>s.videoId===v&&s.at>(it?.sentAt||0)).sort((a,b)=>b.at-a.at)[0]};
+
+$("#gate").addEventListener("submit",async e=>{e.preventDefault();const pass=$("#passcode").value.trim().toLowerCase().replace(/\s+/g,"");
+  if(!window.crypto||!crypto.subtle){$("#gateMsg").textContent="Open this page with https at the start.";return}
+  $("#gateBtn").disabled=true;$("#gateMsg").textContent="Opening…";
+  try{const d=await decryptJSON(FILE,pass);code=pass;items=(d.items||[]).filter(x=>!x.hidden).sort((a,b)=>(a.order||0)-(b.order||0));store.set("amyPc",pass);
+    $("#gate").hidden=true;$("#app").hidden=false;$("#myName").value=myName;const h=location.hash.slice(1);if(items.some(x=>x.id===h))selId=h;renderAll();refresh()}
+  catch(err){$("#gateMsg").textContent=err.code==="bad_code"?"That passcode didn't work.":err.code==="missing"?"Nothing has been sent for editing yet.":"Couldn't open the page. Try again in a minute."}
+  finally{$("#gateBtn").disabled=false}});
+$("#myName").addEventListener("change",e=>{myName=e.target.value.trim();store.set("amyName",myName)});
+(()=>{const pc=store.get("amyPc");if(pc){$("#passcode").value=pc}})();
+
+function renderAll(){renderList();renderDetail()}
+function renderList(){const L=$("#list");L.replaceChildren();if(!items.length){L.append(el("div",{class:"empty"},"Nothing to edit right now."));return}
+  for(const it of items){const n=edits.filter(x=>x.videoId===it.id).length,d=doneFor(it.id);
+    L.append(el("button",{class:"vid","aria-current":it.id===selId?"true":"false",onclick:()=>{selId=it.id;try{history.replaceState(null,"","#"+it.id)}catch{}document.body.classList.add("has-sel");renderAll()}},
+      el("span",{class:"t"},it.title),el("span",{class:"sub"},d?"Sent back to Emily "+fmt(d.at):(n?n+" edit"+(n===1?"":"s")+" saved":"Not started"))))}}
+async function saveField(it,p,f,ta,note){const text=ta.value;if(!myName){$("#myName").focus();toast("Add your name at the top first");return}
+  if(text===f.value&&!editFor(it.id,p.key,f.label)){return}
+  try{const j=await api({action:"edit",videoId:it.id,pieceKey:p.key,field:f.label,path:f.path,text,note:note||"",name:myName});edits=j.edits||edits;renderList();
+    const s=ta.parentElement.querySelector(".saved");if(s)s.textContent="Saved "+fmt(Date.now());ta.classList.toggle("changed",text!==f.value)}
+  catch{toast("Couldn't save. Check your connection.")}}
+function renderDetail(){const it=items.find(x=>x.id===selId);$("#detailEmpty").hidden=!!it;const D=$("#detail");D.hidden=!it;if(!it)return;
+  if(D.contains(document.activeElement)&&document.activeElement.matches("textarea,input"))return;
+  D.replaceChildren(el("div",{style:"display:grid;gap:8px"},el("button",{class:"ghost back",onclick:()=>{selId=null;document.body.classList.remove("has-sel");renderAll()}},"← All videos"),el("h2",{},it.title),
+    it.videoUrl?player(it.videoUrl,"Play the full video"):null));
+  if(it.note)D.append(el("div",{class:"note"},el("b",{},"Note from Emily: "),it.note));
+  let group="";const P=el("div",{class:"posts"});
+  for(const p of it.pieces||[]){if(p.group!==group){group=p.group;P.append(el("h3",{},group))}
+    const art=el("article",{class:"post"},el("div",{class:"post-head"},el("div",{style:"display:grid;gap:2px"},el("span",{class:"kind"},p.platform||""),el("strong",{},p.label))));
+    if(p.images?.length)art.append(el("div",{style:"display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px"},...p.images.map(im=>encImg(im.file,p.label))));
+    if(p.video&&p.key.startsWith("reel"))art.append(player(p.video,"Play the video"));
+    for(const f of p.fields||[]){const ex=editFor(it.id,p.key,f.label);const ta=el("textarea",{"aria-label":p.label+": "+f.label,rows:Math.min(14,Math.max(3,Math.ceil((ex?ex.text:f.value).length/70)+ (ex?ex.text:f.value).split("\n").length))});ta.value=ex?ex.text:f.value;if(ex&&ex.text!==f.value)ta.classList.add("changed");
+      ta.addEventListener("blur",()=>saveField(it,p,f,ta));
+      art.append(el("div",{class:"amy-field"},el("label",{class:"sub"},f.label),ta,el("div",{style:"display:flex;gap:10px;flex-wrap:wrap;align-items:center"},el("span",{class:"saved"},ex?"Saved "+fmt(ex.at)+(ex.by?" by "+ex.by:""):""),
+        ex?el("button",{class:"ghost",type:"button",onclick:async()=>{ta.value=f.value;await saveField(it,p,f,ta);ta.classList.remove("changed")}},"Reset to Emily's draft"):null)))}
+    P.append(art)}
+  D.append(P);
+  const d=doneFor(it.id);const note=el("textarea",{rows:2,placeholder:"Anything Emily should know? (optional)","aria-label":"Note to Emily"});
+  D.append(el("div",{class:"sendback"},el("strong",{},d?"Sent back to Emily "+fmt(d.at):"Finished editing this video?"),d?null:note,
+    el("button",{class:"b-primary",type:"button",onclick:async()=>{if(!myName){$("#myName").focus();toast("Add your name at the top first");return}
+      if(document.activeElement?.blur)document.activeElement.blur();
+      try{const j=await api({action:"amy_done",videoId:it.id,name:myName,note:note.value});status=j.status||status;toast("Sent back to Emily");renderAll()}catch{toast("Couldn't send. Try again.")}}},d?"Send back again":"Send back to Emily")))}
+</script>
+</body>
+</html>

@@ -5,6 +5,7 @@ Run from the repo root:
 
 --videos  folder of studio video records (ArtifactData list with out_dir, collection "videos")
 --sheet   text of the "Deb Content Review (ETC)" Google Sheet (Drive read_file_content fileContent)
+--amy-passcode  ETC-only passcode for Amy's edit page (edit.html); enables the Amy step
 --assets  folder holding studio images named <assetId>.<ext> (poster, clip thumbnails in clipPosters, and graphics of queued videos)
 Writes content.enc.json and img/*.enc.json in place, and a JSON list of studio updates
 [{"doc_id": ..., "version": ..., "data": {...}}] to apply with ArtifactData update.
@@ -125,11 +126,111 @@ def build_piece(v, k, img_for, poster_for=None):
     if imgs: p["images"] = imgs
     return p
 
+# ---------- Amy (ETC editor) step: internal.enc.json, never visible to AARP ----------
+def amy_fields(c, k):
+    if k in ("linkedin", "instagram"):
+        return [{"label": "Caption", "path": [k, "caption"], "value": c[k].get("caption", "")}]
+    if k.startswith("reel"):
+        i = int(k[4:]); r = c["reels"][i]
+        return [{"label": "On-screen text", "path": ["reels", i, "onScreenText"], "value": r.get("onScreenText", "")},
+                {"label": "Caption", "path": ["reels", i, "caption"], "value": r.get("caption", "")}]
+    if k.startswith("story"):
+        i = int(k[5:]); st = c["stories"][i]
+        f = [{"label": "Frame text", "path": ["stories", i, "text"], "value": st.get("text", "")}]
+        if (st.get("sticker") or {}).get("prompt"):
+            f.append({"label": "Sticker question", "path": ["stories", i, "sticker", "prompt"], "value": st["sticker"]["prompt"]})
+        return f
+    if k == "stat":
+        g = c["statGraphic"]
+        return [{"label": "On the graphic", "path": ["statGraphic", "headline"], "value": g.get("headline", "")},
+                {"label": "Caption", "path": ["statGraphic", "caption"], "value": g.get("caption", "")}]
+    if k == "quote":
+        q = c["quoteCard"]
+        return [{"label": "Quote on the graphic", "path": ["quoteCard", "quote"], "value": q.get("quote", "")},
+                {"label": "Caption", "path": ["quoteCard", "caption"], "value": q.get("caption", "")}]
+    if k == "carousel":
+        cr = c["carousel"]
+        f = []
+        for i, sl in enumerate(cr.get("slides") or []):
+            f.append({"label": f"Slide {i+1} headline", "path": ["carousel", "slides", i, "headline"], "value": sl.get("headline", "")})
+            if sl.get("body"): f.append({"label": f"Slide {i+1} text", "path": ["carousel", "slides", i, "body"], "value": sl["body"]})
+        f.append({"label": "Caption", "path": ["carousel", "caption"], "value": cr.get("caption", "")})
+        return f
+    return []
+
+AMY_LABEL = {"linkedin": ("Long video", "LinkedIn", "Long video caption"), "instagram": ("Long video", "Instagram", "Long video caption"),
+             "stat": ("Static posts", "LinkedIn and Instagram", "Stat graphic"), "quote": ("Static posts", "LinkedIn and Instagram", "Quote card"),
+             "carousel": ("Static posts", "LinkedIn and Instagram", "Carousel")}
+
+def amy_sync(acode, videos, tabs, updates, asset_file, now):
+    os.makedirs("img-etc", exist_ok=True)
+    def enc(aid, name):
+        path, ext = asset_file(aid)
+        if not path: return None
+        out = f"img-etc/{name}.enc.json"
+        json.dump(encrypt(acode, open(path, "rb").read(), "image/png" if ext == "png" else "image/jpeg"), open(out, "w"))
+        return out
+    try: internal = json.loads(decrypt(acode, json.load(open("internal.enc.json"))))
+    except Exception: internal = {"items": []}
+    items = {it["id"]: it for it in internal.get("items", [])}
+    for vid, rec in videos.items():
+        v = rec["data"]; st = v.get("amyState")
+        if st == "done" and vid in items: items[vid]["hidden"] = True; continue
+        if st != "queued" or not v.get("content"): continue
+        c = v["content"]; g = {"stat": True, "quote": True, "carousel": False, **(v.get("graphics") or {})}
+        keys = piece_keys(c, g)
+        gi = v.get("graphicsImages") or []
+        pieces = []
+        for k in keys:
+            if k.startswith("reel"): grp, plat, lab = "Reels", "Instagram Reel", f"Reel {int(k[4:])+1}"
+            elif k.startswith("story"): grp, plat, lab = "Stories", "Instagram Story", f"Story frame {int(k[5:])+1}"
+            else: grp, plat, lab = AMY_LABEL[k]
+            p = {"key": k, "group": grp, "platform": plat, "label": lab, "fields": amy_fields(c, k)}
+            imgs = [enc(im["id"], f"{vid}-{k}-{n+1}") for n, im in enumerate(x for x in gi if x.get("piece") == k)]
+            if any(imgs): p["images"] = [{"file": f} for f in imgs if f]
+            if k.startswith("reel") or k in ("linkedin", "instagram"):
+                if v.get("driveUrl"): p["video"] = (v.get("longVideos") or {}).get(k) or v["driveUrl"]
+            pieces.append(p)
+        item = {"id": vid, "order": v.get("order", 0), "title": f"Video {v.get('order')}: {v.get('title','')}", "videoUrl": v.get("driveUrl", ""),
+                "note": v.get("amyNote", ""), "sentAt": now, "pieces": pieces}
+        if v.get("posterId"):
+            f = enc(v["posterId"], f"{vid}-poster")
+            if f: item["poster"] = f
+        items[vid] = item
+        u = next((u for u in updates if u["doc_id"] == vid), None)
+        d = {"amyState": "sent", "amySentAt": now}
+        if u: u["data"].update(d)
+        else: updates.append({"doc_id": vid, "version": rec["version"], "data": d})
+    internal["items"] = sorted(items.values(), key=lambda x: x.get("order", 0)); internal["updatedAt"] = now
+    json.dump(encrypt(acode, json.dumps(internal).encode()), open("internal.enc.json", "w"))
+    # Amy -> studio
+    edits = [x for x in tabs.get("Edits", []) if x.get("videoId")]
+    done = {x.get("videoId"): x for x in tabs.get("AmyStatus", []) if x.get("videoId") and x.get("done_at")}
+    for vid, rec in videos.items():
+        mine = [x for x in edits if x.get("videoId") == vid]
+        if not mine and vid not in done: continue
+        ae = {}
+        for x in mine:
+            try: path = json.loads(x.get("path") or "[]")
+            except Exception: path = []
+            ae.setdefault(x.get("pieceKey", ""), []).append({"label": x.get("field", ""), "path": path, "text": x.get("text", ""), "note": x.get("note", ""), "by": x.get("name", ""), "at": num(x.get("at"))})
+        d = {"amyEdits": ae}
+        v = rec["data"]
+        if vid in done and v.get("amyState") == "sent" and num(done[vid].get("done_at")) > (v.get("amySentAt") or 0):
+            dn = done[vid]; d.update({"amyState": "back", "amyBackAt": num(dn.get("done_at")), "amyBackNote": dn.get("note", "")})
+            ps = dict(v.get("pieceStatus") or {})
+            for k in ps:
+                if ps[k] in ("Draft", "With Amy"): ps[k] = "Amy edits back"
+            d["pieceStatus"] = ps; d["status"] = "Ready for AARP"
+        u = next((u for u in updates if u["doc_id"] == vid), None)
+        if u: u["data"].update(d)
+        else: updates.append({"doc_id": vid, "version": rec["version"], "data": d})
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--passcode", required=True); ap.add_argument("--videos", required=True)
     ap.add_argument("--sheet", required=True); ap.add_argument("--assets", default="")
-    ap.add_argument("--out", required=True)
+    ap.add_argument("--out", required=True); ap.add_argument("--amy-passcode", default="")
     a = ap.parse_args()
     code = a.passcode
     content = json.loads(decrypt(code, json.load(open("content.enc.json"))))
@@ -233,6 +334,9 @@ def main():
         u = next((u for u in updates if u["doc_id"] == vid), None)
         if u: u["data"].update(data)
         else: updates.append({"doc_id": vid, "version": videos[vid]["version"], "data": data})
+
+    if a.amy_passcode:
+        amy_sync(a.amy_passcode, videos, tabs, updates, asset_file, now)
 
     json.dump(updates, open(a.out, "w"), indent=1)
     print(json.dumps({"sent": sent, "removed": removed, "studio_updates": len(updates), "missing_images": missing}))
