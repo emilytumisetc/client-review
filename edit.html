@@ -236,7 +236,7 @@ function renderDetail(){const it=items.find(x=>x.id===selId);$("#detailEmpty").h
     el("button",{class:"b-primary",type:"button",onclick:async e=>{if(!myName){$("#myName").focus();toast("Add your name at the top first");return}
       if(document.activeElement?.blur)document.activeElement.blur();
       if(ap<tot&&!warned){warned=true;warn.hidden=false;e.currentTarget.textContent="Send back anyway";return}
-      try{const j=await api({action:"amy_done",videoId:it.id,name:myName,note:note.value});status=j.status||status;toast("Sent back to Emily");renderAll()}catch{toast("Couldn't send. Try again.")}}},d?"Send back again":"Send back to Emily")))}
+      try{const j=await api({action:"amy_done",videoId:it.id,title:it.title,approved:ap,total:tot,name:myName,note:note.value});status=j.status||status;toast("Sent back to Emily");renderAll()}catch{toast("Couldn't send. Try again.")}}},d?"Send back again":"Send back to Emily")))}
 </script>
 </body>
 </html>
