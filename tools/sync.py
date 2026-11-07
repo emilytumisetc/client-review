@@ -178,7 +178,7 @@ def amy_sync(acode, videos, tabs, updates, asset_file, now):
         if st == "done" and vid in items: items[vid]["hidden"] = True; continue
         if st != "queued" or not v.get("content"): continue
         c = v["content"]; g = {"stat": True, "quote": True, "carousel": False, **(v.get("graphics") or {})}
-        keys = piece_keys(c, g)
+        keys = [k for k in piece_keys(c, g) if (v.get("pieceStatus") or {}).get(k) != "Skip"]
         gi = v.get("graphicsImages") or []
         pieces = []
         for k in keys:
@@ -269,8 +269,8 @@ def main():
         if st != "queued" or not v.get("content"):
             continue
         c = v["content"]; g = {"stat": True, "quote": True, "carousel": False, **(v.get("graphics") or {})}
-        keys = piece_keys(c, g)
         ps = v.get("pieceStatus") or {}
+        keys = [k for k in piece_keys(c, g) if ps.get(k) != "Skip"]
         approved = [k for k in keys if ps.get(k) in ("ETC approved", "Reviewer approved", "Deb approved")]
         keys = approved or keys
         gi = v.get("graphicsImages") or []
