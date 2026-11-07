@@ -97,8 +97,9 @@ def build_piece(v, k, img_for, poster_for=None):
     elif k.startswith("reel"):
         r = c["reels"][int(k[4:])]
         cut = f"Starts at: \"{r.get('startLine','')}\"\nEnds at: \"{r.get('endLine','')}\""
-        p.update(group="Reels", platform="Instagram Reel", label=r.get("angle") or f"Reel {int(k[4:])+1}",
-                 fields=[{"label": "On-screen text", "value": r.get("onScreenText", "")}, {"label": "Caption", "value": r.get("caption", "")}, {"label": "Where the clip is cut", "value": cut}])
+        # Client-facing: no internal angle notes or cut/fact-check notes
+        p.update(group="Reels", platform="Instagram Reel", label=f"Reel {int(k[4:])+1}",
+                 fields=[{"label": "On-screen text", "value": r.get("onScreenText", "")}, {"label": "Caption", "value": r.get("caption", "")}])
         if v.get("driveUrl"): p["video"] = v["driveUrl"]; p["linkLabel"] = "Play the full video"
         cp = (v.get("clipPosters") or {}).get(str(r.get("opusClipId") or ""))
         if cp and cp.get("id") and poster_for:
@@ -177,7 +178,7 @@ def main():
             out = []
             for n, im in enumerate(x for x in gi if x.get("piece") == k):
                 f = enc_image(im["id"], f"{vid}-{k}-{n+1}")
-                if f: out.append({"file": f, "alt": im.get("label", "")})
+                if f: out.append({"file": f, "alt": {"stat": "Stat graphic", "quote": "Quote card", "carousel": "Carousel slide"}.get(k, "Graphic")})
                 else: missing.append(im["id"])
             return out
         def poster_for(aid, name):
