@@ -121,6 +121,10 @@ th{font-size:12px;color:var(--muted);font-weight:600} td.n,th.n{text-align:right
 
 .amy-field{display:grid;gap:6px}
 .amy-field textarea{width:100%;min-height:90px;font:inherit;font-size:14.5px;line-height:1.55;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);resize:vertical;box-sizing:border-box}
+.amy-field textarea[readonly]{background:var(--soft,transparent);color:var(--ink);cursor:default;resize:none}
+.amy-field textarea[readonly]:focus{outline:none}
+.post-head{gap:10px;flex-wrap:wrap}
+.lockbtn{white-space:nowrap;border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:600}
 .amy-field textarea.changed{border-color:var(--pink);box-shadow:0 0 0 2px color-mix(in srgb,var(--pink) 25%,transparent)}
 .amy-field .orig{font-size:13px;color:var(--muted);white-space:pre-wrap}
 .saved{font-size:12.5px;color:var(--ok)}
@@ -186,6 +190,7 @@ $("#gate").addEventListener("submit",async e=>{e.preventDefault();const pass=$("
 $("#myName").addEventListener("change",e=>{myName=e.target.value.trim();store.set("amyName",myName)});
 (()=>{const pc=store.get("amyPc");if(pc){$("#passcode").value=pc}})();
 
+const unlocked=new Set();
 function renderAll(){renderList();renderDetail()}
 function renderList(){const L=$("#list");L.replaceChildren();if(!items.length){L.append(el("div",{class:"empty"},"Nothing to edit right now."));return}
   for(const it of items){const n=edits.filter(x=>x.videoId===it.id).length,d=doneFor(it.id);
@@ -203,13 +208,16 @@ function renderDetail(){const it=items.find(x=>x.id===selId);$("#detailEmpty").h
   if(it.note)D.append(el("div",{class:"note"},el("b",{},"Note from Emily: "),it.note));
   let group="";const P=el("div",{class:"posts"});
   for(const p of it.pieces||[]){if(p.group!==group){group=p.group;P.append(el("h3",{},group))}
-    const art=el("article",{class:"post"},el("div",{class:"post-head"},el("div",{style:"display:grid;gap:2px"},el("span",{class:"kind"},p.platform||""),el("strong",{},p.label))));
+    const uk=it.id+"|"+p.key,open=unlocked.has(uk);const fieldEls=[];
+    const lockBtn=el("button",{class:(open?"":"ghost ")+"lockbtn",type:"button","aria-pressed":open?"true":"false"},open?"Done editing":"Edit copy");
+    lockBtn.onclick=()=>{const nowOpen=!unlocked.has(uk);if(nowOpen)unlocked.add(uk);else unlocked.delete(uk);lockBtn.textContent=nowOpen?"Done editing":"Edit copy";lockBtn.className=(nowOpen?"":"ghost ")+"lockbtn";lockBtn.setAttribute("aria-pressed",nowOpen?"true":"false");fieldEls.forEach(([ta,rb])=>{ta.readOnly=!nowOpen;if(rb)rb.hidden=!nowOpen});if(nowOpen&&fieldEls[0])fieldEls[0][0].focus()};
+    const art=el("article",{class:"post"},el("div",{class:"post-head"},el("div",{style:"display:grid;gap:2px"},el("span",{class:"kind"},p.platform||""),el("strong",{},p.label)),lockBtn));
     if(p.images?.length)art.append(el("div",{style:"display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px"},...p.images.map(im=>encImg(im.file,p.label))));
     if(p.video&&p.key.startsWith("reel"))art.append(player(p.video,"Play the video"));
-    for(const f of p.fields||[]){const ex=editFor(it.id,p.key,f.label);const ta=el("textarea",{"aria-label":p.label+": "+f.label,rows:Math.min(14,Math.max(3,Math.ceil((ex?ex.text:f.value).length/70)+ (ex?ex.text:f.value).split("\n").length))});ta.value=ex?ex.text:f.value;if(ex&&ex.text!==f.value)ta.classList.add("changed");
-      ta.addEventListener("blur",()=>saveField(it,p,f,ta));
+    for(const f of p.fields||[]){const ex=editFor(it.id,p.key,f.label);const ta=el("textarea",{"aria-label":p.label+": "+f.label,rows:Math.min(14,Math.max(3,Math.ceil((ex?ex.text:f.value).length/70)+ (ex?ex.text:f.value).split("\n").length))});ta.value=ex?ex.text:f.value;ta.readOnly=!open;if(ex&&ex.text!==f.value)ta.classList.add("changed");
+      ta.addEventListener("blur",()=>{if(!ta.readOnly||ta.value!==(editFor(it.id,p.key,f.label)?.text??f.value))saveField(it,p,f,ta)});
       art.append(el("div",{class:"amy-field"},el("label",{class:"sub"},f.label),ta,el("div",{style:"display:flex;gap:10px;flex-wrap:wrap;align-items:center"},el("span",{class:"saved"},ex?"Saved "+fmt(ex.at)+(ex.by?" by "+ex.by:""):""),
-        ex?el("button",{class:"ghost",type:"button",onclick:async()=>{ta.value=f.value;await saveField(it,p,f,ta);ta.classList.remove("changed")}},"Reset to Emily's draft"):null)))}
+        (()=>{if(!ex){fieldEls.push([ta,null]);return null}const rb=el("button",{class:"ghost",type:"button",onclick:async()=>{ta.value=f.value;await saveField(it,p,f,ta);ta.classList.remove("changed")}},"Reset to Emily's draft");rb.hidden=!open;fieldEls.push([ta,rb]);return rb})())))}
     P.append(art)}
   D.append(P);
   const d=doneFor(it.id);const note=el("textarea",{rows:2,placeholder:"Anything Emily should know? (optional)","aria-label":"Note to Emily"});
