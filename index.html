@@ -91,6 +91,12 @@ th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);verti
 th{font-size:12px;color:var(--muted);font-weight:600} td.n,th.n{text-align:right}
 .tbl{overflow-x:auto}
 .foot{color:var(--muted);font-size:12.5px;text-align:center;padding-top:8px}
+.vcard{position:relative;display:block;max-width:340px;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--plum);text-decoration:none;color:#fff}
+.vcard img{display:block;width:100%;height:auto}
+.vph{aspect-ratio:9/12;display:grid;place-items:center;padding:24px;text-align:center;font-family:var(--f-display);font-size:22px;color:#fff;background:linear-gradient(160deg,#4A2459,#A9479C)}
+.vcard .play{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);width:64px;height:64px;border-radius:50%;background:rgb(255 255 255 / .92);color:#4A2459;display:grid;place-items:center;font-size:24px;padding-left:4px;box-shadow:0 6px 20px rgb(0 0 0 / .25)}
+.vcard .vlabel{position:absolute;left:0;right:0;bottom:0;padding:10px 14px;background:linear-gradient(transparent,rgb(20 10 30 / .85));font-weight:600;font-size:14px}
+.vcard:hover .play{transform:translate(-50%,-50%) scale(1.06)}
 .back{display:none}
 @media (max-width:880px){
   .desk{grid-template-columns:1fr} .list{position:static}
@@ -168,6 +174,9 @@ async function decryptBytes(url,pass){const r=await fetch(url+"?t="+Date.now(),{
   const key=await crypto.subtle.deriveKey({name:"PBKDF2",salt:b64(e.salt),iterations:e.iter,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["decrypt"]);
   return new Blob([await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(e.iv)},key,b64(e.ct))],{type:e.type||"image/jpeg"})}
 const imgCache={};
+function videoCard(it){if(!it.videoUrl)return null;const a=el("a",{href:it.videoUrl,target:"_blank",rel:"noopener",class:"vcard","aria-label":"Watch the full video: "+it.title});
+  if(it.poster){const img=el("img",{alt:"Still from "+it.title});(imgCache[it.poster]||(imgCache[it.poster]=decryptBytes(it.poster,code).then(b=>URL.createObjectURL(b)))).then(u=>{img.src=u}).catch(()=>{});a.append(img)}else a.append(el("div",{class:"vph"},it.title));
+  a.append(el("span",{class:"play","aria-hidden":"true"},"▶"),el("span",{class:"vlabel"},"Watch the full video"+(it.duration?" · "+it.duration:"")));return a}
 function encImg(file,alt){const img=el("img",{alt:alt||"Graphic",style:"width:100%;max-width:420px;border-radius:12px;border:1px solid var(--line);background:var(--soft);aspect-ratio:4/5;object-fit:cover"});
   (imgCache[file]||(imgCache[file]=decryptBytes(file,code).then(b=>URL.createObjectURL(b)))).then(u=>{img.src=u}).catch(()=>{img.alt="Image couldn't load"});return img}
 async function decryptFile(url,pass){const r=await fetch(url+"?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw{code:"missing"};const e=await r.json();
@@ -219,6 +228,7 @@ function renderDetail(){const it=items.find(x=>x.id===selId);$("#detailEmpty").h
   if(D.contains(document.activeElement)&&document.activeElement.matches("textarea,input"))return;
   D.replaceChildren(el("div",{style:"display:grid;gap:8px"},el("button",{class:"ghost back",onclick:()=>select(null)},"← All videos"),el("h2",{},it.title),
     el("div",{class:"meta"},pill(videoState(it)),it.videoUrl?el("a",{href:it.videoUrl,target:"_blank",rel:"noopener"},"Watch the full video"):null,it.graphicsUrl?el("a",{href:it.graphicsUrl,target:"_blank",rel:"noopener"},"View the graphics"):null)));
+  {const vc=videoCard(it);if(vc)D.append(vc)}
   if(it.note)D.append(el("div",{class:"note"},el("b",{},"Note from Emily: "),it.note));
   if(!role||!myName)D.append(el("div",{class:"note"},"Add your name and choose who you're reviewing as at the top of the page to approve or request changes."));
   const stage=role==="deb"?"deb":role==="reviewer"?"reviewer":null;const P=el("div",{class:"posts"});let group="";
