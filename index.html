@@ -163,6 +163,13 @@ const dkey=(v,p)=>v+"--"+p;
 
 // ---- decrypt (PBKDF2-SHA256 -> AES-256-GCM) ----
 const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function decryptBytes(url,pass){const r=await fetch(url+"?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw{code:"missing"};const e=await r.json();
+  const base=await crypto.subtle.importKey("raw",new TextEncoder().encode(pass),"PBKDF2",false,["deriveKey"]);
+  const key=await crypto.subtle.deriveKey({name:"PBKDF2",salt:b64(e.salt),iterations:e.iter,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["decrypt"]);
+  return new Blob([await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(e.iv)},key,b64(e.ct))],{type:e.type||"image/jpeg"})}
+const imgCache={};
+function encImg(file,alt){const img=el("img",{alt:alt||"Graphic",style:"width:100%;max-width:420px;border-radius:12px;border:1px solid var(--line);background:var(--soft);aspect-ratio:4/5;object-fit:cover"});
+  (imgCache[file]||(imgCache[file]=decryptBytes(file,code).then(b=>URL.createObjectURL(b)))).then(u=>{img.src=u}).catch(()=>{img.alt="Image couldn't load"});return img}
 async function decryptFile(url,pass){const r=await fetch(url+"?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw{code:"missing"};const e=await r.json();
   const base=await crypto.subtle.importKey("raw",new TextEncoder().encode(pass),"PBKDF2",false,["deriveKey"]);
   const key=await crypto.subtle.deriveKey({name:"PBKDF2",salt:b64(e.salt),iterations:e.iter,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["decrypt"]);
@@ -228,6 +235,7 @@ function renderDetail(){const it=items.find(x=>x.id===selId);$("#detailEmpty").h
     P.append(el("article",{class:"post s-"+st},
       el("div",{class:"post-head"},el("div",{style:"display:grid;gap:2px"},el("span",{class:"kind"},p.platform||""),el("strong",{},p.label)),el("div",{class:"actions"},pill(st),el("button",{class:"ghost",onclick:()=>copy((p.fields||[]).map(f=>f.value).join("\n\n"))},"Copy"))),
       p.link?el("a",{href:p.link,target:"_blank",rel:"noopener"},p.linkLabel||"Open"):null,
+      p.images?.length?el("div",{style:"display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px"},...p.images.map(im=>el("figure",{style:"margin:0;display:grid;gap:6px"},encImg(im.file,im.alt),im.caption?el("figcaption",{class:"sub"},im.caption):null))):null,
       ...(p.fields||[]).map(f=>el("div",{class:"field"},f.label?el("label",{},f.label):null,el("div",{class:"copytext"},f.value||""))),
       el("div",{class:"steps"},stepBox(d.reviewer,"AARP reviewer"),stepBox(d.deb,"Deb")),stage?noteBox:null,acts,
       el("div",{class:"comments"},...cs.map(c=>el("div",{class:"cmt"},el("span",{class:"who"},c.by||roleName(c.role)||"Someone")," ",el("span",{class:"when"},fmt(c.at)),el("div",{},c.text))),
