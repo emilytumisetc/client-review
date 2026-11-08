@@ -288,8 +288,20 @@ def main():
         c = v["content"]; g = {"stat": True, "quote": True, "carousel": False, **(v.get("graphics") or {})}
         ps = v.get("pieceStatus") or {}
         keys = [k for k in piece_keys(c, g) if ps.get(k) != "Skip"]
-        approved = [k for k in keys if ps.get(k) in ("ETC approved", "Sent to AARP", "Reviewer approved", "Deb approved")]
-        keys = approved or keys
+        # Only posts Amy approved go to AARP, unless ETC chose "Send to AARP (skip Amy)" (status "Sent to AARP").
+        # Posts AARP is already reviewing stay. "Pulled back" posts never go. No fallback to unapproved drafts.
+        amy_ok = {a.get("key") for a in (v.get("amyApproved") or []) if isinstance(a, dict)}
+        def eligible(k):
+            s_ = ps.get(k)
+            if s_ in ("Pulled back", "Skip"): return False
+            if s_ in ("Sent to AARP", "Amy approved", "Reviewer approved", "Deb approved"): return True
+            return k in amy_ok and s_ in ("ETC approved", "Amy approved")
+        keys = [k for k in keys if eligible(k)]
+        if not keys:
+            if vid in items: items[vid]["hidden"] = True
+            removed.append(vid)
+            updates.append({"doc_id": vid, "version": rec["version"], "data": {"clientState": "removed", "clientSyncedAt": now}})
+            continue
         gi = v.get("graphicsImages") or []
         def img_for(k):
             if k not in ("stat", "stat2", "quote", "carousel"): return []
