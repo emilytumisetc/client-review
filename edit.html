@@ -16,7 +16,7 @@
 <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://review.emilytumiscreative.com/og.png">
-<title>ETC Edit Desk</title>
+<title>Amy's Edit Desk | Emily Tumis Creative</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&display=swap">
 <style>
@@ -157,8 +157,8 @@ a.playbtn{text-decoration:none}
 <body>
 <form class="panel gate" id="gate">
   <div class="sub">Emily Tumis Creative · internal</div>
-  <h1>Edit Desk</h1>
-  <label for="passcode" class="sub">Enter the ETC editor passcode.</label>
+  <h1>Amy's Edit Desk</h1>
+  <label for="passcode" class="sub">Hi Amy. Enter your Edit Desk passcode.</label>
   <input id="passcode" type="password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" required>
   <button class="b-primary" type="submit" id="gateBtn">Open</button>
   <div class="sub" id="gateMsg" role="alert"></div>
@@ -168,8 +168,9 @@ a.playbtn{text-decoration:none}
   <header class="top">
     <div style="display:grid;gap:4px">
       <div class="sub">Emily Tumis Creative · internal, not shared with AARP</div>
-      <h1>Edit Desk: Deb Whitman content</h1>
-      <div class="sub">Edit any caption or on-graphic text directly. Edits save as you go. When a video is done, send it back to Emily.</div>
+      <h1>Amy's Edit Desk</h1>
+      <div style="font-size:17px;font-weight:600">Hi Amy, this is your space to edit Deb Whitman's content.</div>
+      <div class="sub">Click Edit copy to make changes, Approve each post you're happy with, and leave a note if Emily should know something. Edits save as you go. When a video is done, send it back to Emily.</div>
     </div>
     <div class="who-box"><label for="myName">Your name</label><input id="myName" placeholder="First name" size="10"></div>
   </header>
@@ -186,7 +187,7 @@ const FILE = "internal.enc.json";
 const $=s=>document.querySelector(s);
 const el=(tag,attrs={},...kids)=>{const n=document.createElement(tag);for(const[k,v]of Object.entries(attrs||{})){if(k==="class")n.className=v;else if(k.startsWith("on"))n.addEventListener(k.slice(2),v);else if(v!==false&&v!=null)n.setAttribute(k,v===true?"":v)}for(const c of kids.flat()){if(c==null||c===false)continue;n.append(c.nodeType?c:document.createTextNode(String(c)))}return n};
 const store={get:k=>{try{return localStorage.getItem(k)||""}catch{return""}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch{}}};
-let code="",items=[],edits=[],status=[],selId=null,myName=store.get("amyName");
+let code="",items=[],edits=[],status=[],selId=null,myName=store.get("amyName")||"Amy";
 function toast(m){const t=el("div",{class:"toast",role:"status"},m);document.body.append(t);setTimeout(()=>t.remove(),2400)}
 const fmt=ts=>ts?new Date(ts).toLocaleString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}):"";
 const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
