@@ -144,6 +144,9 @@ th{font-size:12px;color:var(--muted);font-weight:600} td.n,th.n{text-align:right
 .playbtn:hover{filter:brightness(1.1)}
 .playbtn .pi{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--panel);color:var(--plum);font-size:12px;padding-left:2px}
 a.playbtn{text-decoration:none}
+.notebox{background:var(--panel);border-style:dashed}
+.count{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.count.over{color:var(--warn);font-weight:700}
 .lockbtn{white-space:nowrap;border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:600}
 .amy-field textarea.changed{border-color:var(--pink);box-shadow:0 0 0 2px color-mix(in srgb,var(--pink) 25%,transparent)}
 .amy-field .orig{font-size:13px;color:var(--muted);white-space:pre-wrap}
@@ -198,7 +201,9 @@ function player(url,label){const id=driveId(url);if(!id)return url?el("a",{href:
 async function api(body){const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({...body,code})});const j=await r.json();if(!j.ok)throw{code:j.error||"error"};return j}
 async function refresh(){try{const j=await api({action:"amy_load"});edits=j.edits||[];status=j.status||[];renderAll()}catch(e){if(e.code==="unknown_action"||e.code==="bad_code")toast("Saving isn't switched on yet. Emily is finishing setup.")}}
 const editFor=(v,p,f)=>edits.find(x=>x.videoId===v&&x.pieceKey===p&&x.field===f);
-const APPROVE="__approved";
+const APPROVE="__approved",NOTE="__note";
+function limitFor(p,label){const t=(label+" "+(p.platform||"")).toLowerCase();if(/caption/.test(label.toLowerCase())||/caption/.test((p.label||"").toLowerCase())){if(/linkedin/.test(label.toLowerCase()))return 3000;if(/instagram/.test(label.toLowerCase()))return 2200;if(/linkedin/.test(t)&&!/instagram/.test(t))return 3000;if(/instagram/.test(t))return 2200}return 0}
+function counter(ta,limit){const c=el("span",{class:"count","aria-live":"polite"});const upd=()=>{const n=ta.value.length;c.textContent=n.toLocaleString()+(limit?" / "+limit.toLocaleString():"")+" characters";c.classList.toggle("over",!!limit&&n>limit)};ta.addEventListener("input",upd);upd();return c}
 const approvedFor=(it,k)=>{const e=editFor(it.id,k,APPROVE);return !!(e&&e.text==="yes"&&e.at>(it.sentAt||0))};
 async function setApproved(it,p,yes){if(!myName){$("#myName").focus();toast("Add your name at the top first");return}
   try{const j=await api({action:"edit",videoId:it.id,pieceKey:p.key,field:APPROVE,path:[],text:yes?"yes":"no",note:"",name:myName});edits=j.edits||edits;toast(yes?"Approved":"Approval removed");renderAll()}catch{toast("Couldn't save. Check your connection.")}}
@@ -217,7 +222,7 @@ $("#myName").addEventListener("change",e=>{myName=e.target.value.trim();store.se
 const unlocked=new Set();
 function renderAll(){renderList();renderDetail()}
 function renderList(){const L=$("#list");L.replaceChildren();if(!items.length){L.append(el("div",{class:"empty"},"Nothing to edit right now."));return}
-  for(const it of items){const n=edits.filter(x=>x.videoId===it.id&&x.field!==APPROVE).length,d=doneFor(it.id),tot=(it.pieces||[]).length,ap=(it.pieces||[]).filter(p=>approvedFor(it,p.key)).length;
+  for(const it of items){const n=edits.filter(x=>x.videoId===it.id&&x.field!==APPROVE&&x.field!==NOTE).length,d=doneFor(it.id),tot=(it.pieces||[]).length,ap=(it.pieces||[]).filter(p=>approvedFor(it,p.key)).length;
     L.append(el("button",{class:"vid","aria-current":it.id===selId?"true":"false",onclick:()=>{selId=it.id;try{history.replaceState(null,"","#"+it.id)}catch{}document.body.classList.add("has-sel");renderAll()}},
       el("span",{class:"t"},it.title),el("span",{class:"sub"},d?"Sent back to Emily "+fmt(d.at):(ap||n?ap+" of "+tot+" approved"+(n?" · "+n+" edit"+(n===1?"":"s"):""):"Not started"))))}}
 async function saveField(it,p,f,ta,note){const text=ta.value;if(!myName){$("#myName").focus();toast("Add your name at the top first");return}
@@ -241,8 +246,12 @@ function renderDetail(){const it=items.find(x=>x.id===selId);$("#detailEmpty").h
     if(p.video&&p.key.startsWith("reel"))art.append(player(p.video,"Play this clip"));
     for(const f of p.fields||[]){const ex=editFor(it.id,p.key,f.label);const ta=el("textarea",{"aria-label":p.label+": "+f.label,rows:Math.min(14,Math.max(3,Math.ceil((ex?ex.text:f.value).length/70)+ (ex?ex.text:f.value).split("\n").length))});ta.value=ex?ex.text:f.value;ta.readOnly=!open;if(ex&&ex.text!==f.value)ta.classList.add("changed");
       ta.addEventListener("blur",()=>{if(!ta.readOnly||ta.value!==(editFor(it.id,p.key,f.label)?.text??f.value))saveField(it,p,f,ta)});
-      art.append(el("div",{class:"amy-field"},el("label",{class:"sub"},f.label),ta,el("div",{style:"display:flex;gap:10px;flex-wrap:wrap;align-items:center"},el("span",{class:"saved"},ex?"Saved "+fmt(ex.at)+(ex.by?" by "+ex.by:""):""),
-        (()=>{if(!ex){fieldEls.push([ta,null]);return null}const rb=el("button",{class:"ghost",type:"button",onclick:async()=>{ta.value=f.value;await saveField(it,p,f,ta);ta.classList.remove("changed")}},"Reset to Emily's draft");rb.hidden=!open;fieldEls.push([ta,rb]);return rb})())))}
+      art.append(el("div",{class:"amy-field"},el("label",{class:"sub"},f.label),ta,el("div",{style:"display:flex;gap:10px;flex-wrap:wrap;align-items:center"},counter(ta,limitFor(p,f.label)),el("span",{class:"saved"},ex?"Saved "+fmt(ex.at)+(ex.by?" by "+ex.by:""):""),
+        (()=>{if(!ex){fieldEls.push([ta,null]);return null}const rb=el("button",{class:"ghost",type:"button",onclick:async()=>{ta.value=f.value;ta.dispatchEvent(new Event("input"));await saveField(it,p,f,ta);ta.classList.remove("changed")}},"Reset to Emily's draft");rb.hidden=!open;fieldEls.push([ta,rb]);return rb})())))}
+    {const ne=editFor(it.id,p.key,NOTE);const cur=ne&&ne.at>(it.sentAt||0)?ne.text:"";const nt=el("textarea",{class:"notebox",rows:2,placeholder:"Optional note for Emily about this post","aria-label":p.label+": note for Emily"});nt.value=cur;const st=el("span",{class:"saved"},cur?"Note saved "+fmt(ne.at):"");
+      nt.addEventListener("blur",async()=>{const val=nt.value.trim();const prev=(editFor(it.id,p.key,NOTE)?.at>(it.sentAt||0))?editFor(it.id,p.key,NOTE).text:"";if(val===prev)return;if(!myName){$("#myName").focus();toast("Add your name at the top first");return}
+        try{const j=await api({action:"edit",videoId:it.id,pieceKey:p.key,field:NOTE,path:[],text:val,note:"",name:myName});edits=j.edits||edits;st.textContent=val?"Note saved just now":"Note removed";toast(val?"Note saved":"Note removed")}catch{toast("Couldn't save. Check your connection.")}});
+      art.append(el("div",{class:"amy-field"},el("label",{class:"sub"},"Note for Emily"),nt,st))}
     P.append(art)}
   D.append(P);
   const d=doneFor(it.id);const note=el("textarea",{rows:2,placeholder:"Anything Emily should know? (optional)","aria-label":"Note to Emily"});
