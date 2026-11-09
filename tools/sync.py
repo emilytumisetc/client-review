@@ -261,6 +261,9 @@ def main():
     for f in glob.glob(os.path.join(a.videos, "**", "*.json"), recursive=True):
         d = json.load(open(f)); vid = d.get("id") or os.path.splitext(os.path.basename(f))[0]
         videos[vid] = {"data": d.get("data", d), "version": d.get("version")}
+        _v = videos[vid]["data"]; _cf = _v.get("clipFiles") or {}
+        for _r in ((_v.get("content") or {}).get("reels") or []):
+            if isinstance(_r, dict) and not _r.get("videoUrl") and _cf.get(_r.get("opusClipId")): _r["videoUrl"] = _cf[_r["opusClipId"]]
 
     def asset_file(aid):
         for ext in ("jpg", "jpeg", "png", "webp"):
