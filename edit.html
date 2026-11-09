@@ -140,6 +140,10 @@ th{font-size:12px;color:var(--muted);font-weight:600} td.n,th.n{text-align:right
 .appbtn[aria-pressed="true"]{background:var(--ok);color:var(--panel)}
 .head-btns{display:flex;gap:8px;flex-wrap:wrap}
 .sendwarn{color:var(--warn);font-size:13.5px}
+.playbtn{display:inline-flex;align-items:center;gap:10px;align-self:flex-start;background:var(--plum);color:var(--panel);border:none;border-radius:12px;padding:12px 20px 12px 14px;font-size:15px;font-weight:700;box-shadow:0 2px 8px rgba(74,36,89,.25)}
+.playbtn:hover{filter:brightness(1.1)}
+.playbtn .pi{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--panel);color:var(--plum);font-size:12px;padding-left:2px}
+a.playbtn{text-decoration:none}
 .lockbtn{white-space:nowrap;border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:600}
 .amy-field textarea.changed{border-color:var(--pink);box-shadow:0 0 0 2px color-mix(in srgb,var(--pink) 25%,transparent)}
 .amy-field .orig{font-size:13px;color:var(--muted);white-space:pre-wrap}
@@ -190,7 +194,7 @@ const imgCache={};
 function encImg(file,alt,style){const img=el("img",{alt,style:style||"width:100%;max-width:360px;border-radius:12px;border:1px solid var(--line);background:var(--soft)"});
   (imgCache[file]||(imgCache[file]=fetchEnc(file).then(async e=>URL.createObjectURL(new Blob([await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(e.iv)},await keyFor(e,code),b64(e.ct))],{type:e.type||"image/jpeg"}))))).then(u=>{img.src=u}).catch(()=>{});return img}
 const driveId=u=>{const m=String(u||"").match(/\/d\/([\w-]{20,})/);return m?m[1]:""};
-function player(url,label){const id=driveId(url);if(!id)return url?el("a",{href:url,target:"_blank",rel:"noopener"},label):null;const b=el("button",{type:"button"},"▶ "+label);b.onclick=()=>b.replaceWith(el("iframe",{class:"player",src:"https://drive.google.com/file/d/"+id+"/preview",allow:"autoplay; fullscreen",allowfullscreen:true,title:label}));return b}
+function player(url,label){const id=driveId(url);if(!id)return url?el("a",{href:url,target:"_blank",rel:"noopener",class:"playbtn"},el("span",{class:"pi","aria-hidden":"true"},"▶"),label):null;const b=el("button",{type:"button",class:"playbtn"},el("span",{class:"pi","aria-hidden":"true"},"▶"),label);b.onclick=()=>b.replaceWith(el("iframe",{class:"player",src:"https://drive.google.com/file/d/"+id+"/preview",allow:"autoplay; fullscreen",allowfullscreen:true,title:label}));return b}
 async function api(body){const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({...body,code})});const j=await r.json();if(!j.ok)throw{code:j.error||"error"};return j}
 async function refresh(){try{const j=await api({action:"amy_load"});edits=j.edits||[];status=j.status||[];renderAll()}catch(e){if(e.code==="unknown_action"||e.code==="bad_code")toast("Saving isn't switched on yet. Emily is finishing setup.")}}
 const editFor=(v,p,f)=>edits.find(x=>x.videoId===v&&x.pieceKey===p&&x.field===f);
@@ -234,7 +238,7 @@ function renderDetail(){const it=items.find(x=>x.id===selId);$("#detailEmpty").h
     const isAp=approvedFor(it,p.key);const apBtn=el("button",{class:"appbtn",type:"button","aria-pressed":isAp?"true":"false",onclick:()=>{if(document.activeElement?.blur)document.activeElement.blur();setApproved(it,p,!isAp)}},isAp?"✓ Approved":"Approve");
     const art=el("article",{class:"post"+(isAp?" approved":"")},el("div",{class:"post-head"},el("div",{style:"display:grid;gap:2px"},el("span",{class:"kind"},p.platform||""),el("strong",{},p.label)),el("div",{class:"head-btns"},lockBtn,apBtn)));
     if(p.images?.length)art.append(el("div",{style:"display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px"},...p.images.map(im=>encImg(im.file,p.label))));
-    if(p.video&&p.key.startsWith("reel"))art.append(player(p.video,"Play the video"));
+    if(p.video&&p.key.startsWith("reel"))art.append(player(p.video,"Play this clip"));
     for(const f of p.fields||[]){const ex=editFor(it.id,p.key,f.label);const ta=el("textarea",{"aria-label":p.label+": "+f.label,rows:Math.min(14,Math.max(3,Math.ceil((ex?ex.text:f.value).length/70)+ (ex?ex.text:f.value).split("\n").length))});ta.value=ex?ex.text:f.value;ta.readOnly=!open;if(ex&&ex.text!==f.value)ta.classList.add("changed");
       ta.addEventListener("blur",()=>{if(!ta.readOnly||ta.value!==(editFor(it.id,p.key,f.label)?.text??f.value))saveField(it,p,f,ta)});
       art.append(el("div",{class:"amy-field"},el("label",{class:"sub"},f.label),ta,el("div",{style:"display:flex;gap:10px;flex-wrap:wrap;align-items:center"},el("span",{class:"saved"},ex?"Saved "+fmt(ex.at)+(ex.by?" by "+ex.by:""):""),
