@@ -36,10 +36,10 @@ function doPost(e){
   lock.waitLock(10000);
   try{
     if(b.action === "load")    return out_({ok:true, decisions: readDecisions_(), comments: readComments_(), photos: readPhotos_()});
-    if(b.action === "photo")   { const err = photo_(b); if(err) return out_({ok:false, error: err}); return out_({ok:true, photos: readPhotos_()}); }
-    if(b.action === "photo_remove") { photoRemove_(b); return out_({ok:true, photos: readPhotos_()}); }
-    if(b.action === "decide")  { decide_(b); return out_({ok:true, decisions: readDecisions_()}); }
-    if(b.action === "comment") { comment_(b); return out_({ok:true, comments: readComments_()}); }
+    if(b.action === "photo")   { const err = photo_(b); if(err) return out_({ok:false, error: err}); notifyAarp_(b); return out_({ok:true, photos: readPhotos_()}); }
+    if(b.action === "photo_remove") { photoRemove_(b); notifyAarp_(b); return out_({ok:true, photos: readPhotos_()}); }
+    if(b.action === "decide")  { decide_(b); notifyAarp_(b); return out_({ok:true, decisions: readDecisions_()}); }
+    if(b.action === "comment") { comment_(b); notifyAarp_(b); return out_({ok:true, comments: readComments_()}); }
     return out_({ok:false, error:"unknown_action"});
   } finally { lock.releaseLock(); }
 }
@@ -136,6 +136,38 @@ function amy_(b){
     return out_({ok:false, error:"unknown_action"});
   } finally { lock.releaseLock(); }
 }
+// Email Emily the moment AARP does anything on the review site
+function notifyAarp_(b){
+  if(!NOTIFY_EMAIL) return;
+  try{
+    const who = clean_(b.name, 80) || "Someone at AARP";
+    const vid = String(b.videoId || ""), m = vid.match(/^v0*(\d+)$/);
+    const title = clean_(b.title, 200) || (m ? "Video " + m[1] : vid);
+    const piece = clean_(b.pieceLabel, 120) || clean_(b.pieceKey, 80);
+    const where = title + (piece ? " / " + piece : "");
+    const stage = b.stage === "deb" ? "Deb" : "Reviewer";
+    let subject = "", lines = [];
+    if(b.action === "decide"){
+      const what = b.status === "approved" ? "approved" : b.status === "changes" ? "requested changes on" : "cleared their decision on";
+      subject = "AARP: " + who + " " + what + " " + where;
+      lines.push(who + " (" + stage + " step) " + what + ": " + where);
+      if(b.note) lines.push("", "Note: " + clean_(b.note, 2000));
+    } else if(b.action === "comment"){
+      subject = "AARP comment from " + who + ": " + where;
+      lines.push(who + " commented on " + where + ":", "", clean_(b.text, 2000));
+    } else if(b.action === "photo"){
+      subject = "AARP photo from " + who + ": " + where;
+      lines.push(who + " uploaded a photo for " + where + ". It's saved in the review photos folder in Drive.");
+      if(b.note) lines.push("", "Note: " + clean_(b.note, 500));
+    } else if(b.action === "photo_remove"){
+      subject = "AARP removed a photo";
+      lines.push("Someone on the AARP review site removed a photo they had uploaded.");
+    } else return;
+    lines.push("", "Open the studio and click Sync now to bring it in.");
+    MailApp.sendEmail({to: NOTIFY_EMAIL, subject: subject, body: lines.join("\n"), name: "Content Review"});
+  }catch(err){}
+}
+
 function notifyAmyDone_(b){
   if(!NOTIFY_EMAIL) return;
   try{

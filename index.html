@@ -220,7 +220,8 @@ async function decryptFile(url,pass){const r=await fetch(url+"?t="+Date.now(),{c
   try{const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(e.iv)},key,b64(e.ct));return JSON.parse(new TextDecoder().decode(pt))}catch{throw{code:"bad_code"}}}
 
 // ---- backend ----
-async function api(body){if(!API_URL)throw{code:"no_api"};const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({...body,code})});const j=await r.json();if(!j.ok)throw{code:j.error||"error"};return j}
+function ctx_(b){try{const it=b.videoId&&items.find(x=>x.id===b.videoId);if(!it)return{};const pc=(it.pieces||[]).find(x=>x.key===b.pieceKey);return{title:it.title||"",pieceLabel:(pc&&pc.label)||"",platform:(pc&&pc.platform)||""}}catch{return{}}}
+async function api(body){if(!API_URL)throw{code:"no_api"};const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({...body,...ctx_(body),code})});const j=await r.json();if(!j.ok)throw{code:j.error||"error"};return j}
 async function refresh(){try{const j=await api({action:"load"});decisions=j.decisions||{};comments=j.comments||[];photos=j.photos||[];renderAll()}catch(e){if(e.code==="no_api")return}}
 
 // ---- gate ----
