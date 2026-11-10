@@ -301,8 +301,9 @@ def main():
         def eligible(k):
             s_ = ps.get(k)
             if s_ in ("Pulled back", "Skip"): return False
-            if s_ in ("Sent to AARP", "Amy approved", "Reviewer approved", "Deb approved"): return True
-            return k in amy_ok and s_ in ("ETC approved", "Amy approved")
+            if s_ == "Sent to AARP": return True  # ETC chose to bypass Amy for this post
+            if s_ in ("Reviewer approved", "Deb approved") and k in (v.get("clientSnap") or {}): return True  # already on AARP's site
+            return k in amy_ok and s_ not in ("Draft", "With Amy")  # Amy approved it on her Edit Desk
         keys = [k for k in keys if eligible(k)]
         if not keys:
             if vid in items: items[vid]["hidden"] = True
