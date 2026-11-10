@@ -234,6 +234,10 @@ def amy_sync(acode, videos, tabs, updates, asset_file, now):
                 continue
             try: path = json.loads(x.get("path") or "[]")
             except Exception: path = []
+            if not path:  # the sheet export can lose the path; rebuild it from the post and field label
+                try:
+                    path = next((f["path"] for f in amy_fields(rec["data"].get("content") or {}, x.get("pieceKey", "")) if f["label"] == x.get("field")), [])
+                except Exception: path = []
             ae.setdefault(x.get("pieceKey", ""), []).append({"label": x.get("field", ""), "path": path, "text": x.get("text", ""), "note": x.get("note", ""), "by": x.get("name", ""), "at": num(x.get("at"))})
         d = {"amyEdits": ae, "amyApproved": [{"key": k, "by": a["by"], "at": a["at"]} for k, a in appr.items() if a["yes"]], "amyNotes": [n for n in notes.values() if n["text"].strip()]}
         v = rec["data"]
@@ -243,6 +247,21 @@ def amy_sync(acode, videos, tabs, updates, asset_file, now):
             for k in ps:
                 if ps[k] in ("Draft", "With Amy"): ps[k] = "Amy approved" if (appr.get(k) or {}).get("yes") else "Amy edits back"
             d["pieceStatus"] = ps; d["status"] = "Ready for AARP"
+            # Amy sent it back: her copy becomes the copy (the old copy is kept for Undo).
+            old = v.get("content") or {}; newc = json.loads(json.dumps(old)); n_applied = 0
+            for k_, lst in ae.items():
+                for e in sorted(lst, key=lambda e: e["at"]):
+                    if e["at"] <= sent_at: continue  # only this round's edits
+                    pth = e.get("path") or []
+                    if not pth: continue
+                    o = newc
+                    try:
+                        for seg in pth[:-1]: o = o[seg]
+                        if o[pth[-1]] != e["text"]:
+                            o[pth[-1]] = e["text"]; n_applied += 1
+                    except Exception: pass
+            if n_applied:
+                d["prevContent"] = old; d["content"] = newc; d["amyAppliedAt"] = now; d["amyAppliedCount"] = n_applied
         u = next((u for u in updates if u["doc_id"] == vid), None)
         if u: u["data"].update(d)
         else: updates.append({"doc_id": vid, "version": rec["version"], "data": d})
