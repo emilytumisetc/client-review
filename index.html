@@ -65,6 +65,12 @@ a{color:var(--pink)}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
 .tally{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:grid;gap:2px}
+button.tile{font:inherit;color:inherit;text-align:left;cursor:pointer}
+button.tile:hover{border-color:var(--plum)}
+button.tile[aria-pressed="true"]{outline:3px solid var(--plum);outline-offset:-1px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.c-review{color:var(--plum)} .c-deb{color:var(--pink)} .c-changes{color:var(--bad)} .c-done{color:var(--ok)}
+.chip{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
 .tile b{font-size:26px;font-variant-numeric:tabular-nums;font-weight:700}
 .tile span{font-size:13px;color:var(--muted)}
 .t-review b{color:var(--plum)} .t-deb b{color:var(--pink)} .t-changes b{color:var(--bad)} .t-done b{color:var(--ok)}
@@ -169,7 +175,8 @@ th{font-size:12px;color:var(--muted);font-weight:600} td.n,th.n{text-align:right
 
   <section id="viewReview" style="display:grid;gap:18px">
     <div class="platbar"><span class="sub">Show</span><div class="seg" id="platSeg" role="group" aria-label="Filter by platform"><button data-p="all">All posts</button><button data-p="li">LinkedIn</button><button data-p="ig">Instagram &amp; Facebook</button></div></div>
-    <section class="tally" id="tally" aria-label="Summary"></section>
+    <section class="tally" id="tally" aria-label="Summary. Click a total to see those posts."></section>
+    <div class="note" id="sfBar" hidden></div>
     <div id="etcBar" class="actions" hidden><button id="btnCsv">Export approved posts for Cloud Campaign (CSV)</button><span class="sub">Only posts Deb has approved are included.</span></div>
     <div class="desk">
       <aside class="panel listwrap"><div class="list" id="list"></div></aside>
@@ -273,14 +280,21 @@ function photoBox(it,p){const mine=photos.filter(x=>x.videoId===it.id&&x.pieceKe
 // ---- render: review ----
 let plat="all";try{plat=localStorage.getItem("debPlat")||"all"}catch{}
 const showP=p=>plat==="all"||(plat==="li"?/linkedin/i:/instagram|facebook/i).test(p.platform||"");
-const vis=it=>(it.pieces||[]).filter(showP);
+let sf="";const SF_LABEL={review:"waiting for the AARP reviewer",deb:"waiting for Deb",changes:"with changes requested",done:"fully approved"};
+const SF_SHORT={review:"for reviewer",deb:"for Deb",changes:"changes requested",done:"approved"};
+const visP=it=>(it.pieces||[]).filter(showP);
+const vis=it=>visP(it).filter(p=>!sf||pieceState(it.id,p.key)===sf);
+function setSf(k){sf=sf===k?"":k;renderAll()}
 function setPlat(v){plat=v;try{localStorage.setItem("debPlat",v)}catch{}document.querySelectorAll("#platSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.p===plat?"true":"false"));renderAll()}
 document.querySelectorAll("#platSeg button").forEach(b=>{b.setAttribute("aria-pressed",b.dataset.p===plat?"true":"false");b.onclick=()=>setPlat(b.dataset.p)});
 function renderAll(){renderTally();renderList();renderDetail();$("#etcBar").hidden=role!=="etc";if(!$("#viewStats").hidden)renderStats()}
-function renderTally(){const all=items.flatMap(it=>vis(it).map(p=>pieceState(it.id,p.key)));const c=k=>all.filter(x=>x===k).length;
-  $("#tally").replaceChildren(...[["review","t-review","Posts waiting for the AARP reviewer"],["deb","t-deb","Posts waiting for Deb"],["changes","t-changes","Posts with changes requested"],["done","t-done","Posts fully approved"]].map(([k,cls,l])=>el("div",{class:"tile "+cls},el("b",{},String(c(k))),el("span",{},l))))}
+function renderTally(){const all=items.flatMap(it=>visP(it).map(p=>pieceState(it.id,p.key)));const c=k=>all.filter(x=>x===k).length;
+  $("#tally").replaceChildren(...[["review","t-review","Posts waiting for the AARP reviewer"],["deb","t-deb","Posts waiting for Deb"],["changes","t-changes","Posts with changes requested"],["done","t-done","Posts fully approved"]].map(([k,cls,l])=>el("button",{class:"tile "+cls,"aria-pressed":sf===k?"true":"false",title:sf===k?"Show all posts again":"Show only these posts",onclick:()=>setSf(k)},el("b",{},String(c(k))),el("span",{},l))));
+  $("#sfBar").hidden=!sf;if(sf)$("#sfBar").replaceChildren(el("span",{},"Showing only posts "+SF_LABEL[sf]+". "),el("button",{class:"ghost",onclick:()=>setSf(sf)},"Show all posts"))}
 function renderList(){const L=$("#list");L.replaceChildren();if(!items.length){L.append(el("div",{class:"empty"},"Nothing to review yet. Emily will add posts here when they're ready."));return}
-  let shown=0;for(const it of items){const n=vis(it).length;if(!n&&plat!=="all")continue;shown++;L.append(el("button",{class:"vid","aria-current":it.id===selId?"true":"false",onclick:()=>select(it.id)},el("span",{class:"t"},it.title),el("span",{style:"display:flex;gap:8px;flex-wrap:wrap;align-items:center"},pill(videoState(it)),el("span",{class:"sub"},n+" post"+(n===1?"":"s")))))}if(!shown)L.append(el("div",{class:"empty"},"No posts for this platform yet."))}
+  let shown=0;for(const it of items){const n=vis(it).length;if(!n&&(plat!=="all"||sf))continue;shown++;
+    const bd={};for(const p of visP(it)){const k=pieceState(it.id,p.key);bd[k]=(bd[k]||0)+1}
+    const chips=["review","deb","changes","done"].filter(k=>bd[k]).map(k=>el("span",{class:"chip c-"+k},bd[k]+" "+SF_SHORT[k]));L.append(el("button",{class:"vid","aria-current":it.id===selId?"true":"false",onclick:()=>select(it.id)},el("span",{class:"t"},it.title),el("span",{style:"display:flex;gap:8px;flex-wrap:wrap;align-items:center"},sf?null:pill(videoState(it)),el("span",{class:"sub"},n+" post"+(n===1?"":"s")+(sf?" "+SF_LABEL[sf]:""))),sf?null:el("span",{class:"chips"},...chips)))}if(!shown)L.append(el("div",{class:"empty"},sf?"No posts "+SF_LABEL[sf]+" right now.":"No posts for this platform yet."))}
 function select(id){selId=id;document.body.classList.toggle("has-sel",!!id);try{history.replaceState(null,"",id?"#"+id:location.pathname)}catch{}renderList();renderDetail()}
 function stepBox(d,label){if(!d)return el("div",{class:"step"},el("b",{},label),"Waiting");return el("div",{class:"step "+(d.status==="approved"?"ok":"bad")},el("b",{},label+(d.status==="approved"?": approved":": changes requested")),[d.by,fmt(d.at)].filter(Boolean).join(" · "),d.note?el("span",{},"“"+d.note+"”"):null)}
 function renderDetail(force){const it=items.find(x=>x.id===selId);$("#detailEmpty").hidden=!!it;const D=$("#detail");D.hidden=!it;if(!it)return;
@@ -291,7 +305,8 @@ function renderDetail(force){const it=items.find(x=>x.id===selId);$("#detailEmpt
   if(it.note)D.append(el("div",{class:"note"},el("b",{},"Note from Emily: "),it.note));
   if(!role||!myName)D.append(el("div",{class:"note"},"Add your name and choose who you're reviewing as at the top of the page to approve or request changes."));
   const stage=role==="deb"?"deb":role==="reviewer"?"reviewer":null;const P=el("div",{class:"posts"});let group="";
-  const vp=vis(it);if(!vp.length)P.append(el("div",{class:"empty"},"This video has no posts for this platform. Choose All posts to see everything."));
+  const vp=vis(it);if(!vp.length)P.append(el("div",{class:"empty"},sf?"No posts in this video are "+SF_LABEL[sf]+". Click the highlighted total at the top to see all posts.":"This video has no posts for this platform. Choose All posts to see everything."));
+  else if(sf&&vp.length<visP(it).length)P.append(el("div",{class:"note"},"Showing "+vp.length+" of "+visP(it).length+" posts in this video ("+SF_LABEL[sf]+"). ",el("button",{class:"ghost",onclick:()=>setSf(sf)},"Show all")));
   for(const p of vp){if(p.group&&p.group!==group){group=p.group;P.append(el("h3",{},group))}
     const d=decisions[dkey(it.id,p.key)]||{},st=pieceState(it.id,p.key);
     const noteBox=el("textarea",{id:"note-"+p.key,rows:2,placeholder:"What should change? (optional when approving)","aria-label":"Note for "+p.label});
