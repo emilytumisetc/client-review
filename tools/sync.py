@@ -171,6 +171,53 @@ AMY_LABEL = {"linkedin": ("Long video", "LinkedIn", "Long video caption"), "inst
              "stat": ("Static posts", "LinkedIn and Instagram", "Stat graphic"), "stat2": ("Static posts", "LinkedIn and Instagram", "Stat graphic 2"), "quote": ("Static posts", "LinkedIn and Instagram", "Quote card"),
              "carousel": ("Static posts", "LinkedIn and Instagram", "Carousel")}
 
+def amy_promote(videos, tabs, now):
+    """Amy approved a post on her Edit Desk: put her edits into the studio copy and send the post to AARP.
+    Runs before the AARP site is built. Changes are made in memory and returned as studio updates."""
+    edits = [x for x in tabs.get("Edits", []) if x.get("videoId")]
+    out = {}
+    for vid, rec in videos.items():
+        v = rec["data"]; c = v.get("content")
+        if not c or v.get("amyState") not in ("sent", "back"): continue
+        sent_at = v.get("amySentAt") or 0
+        mine = [x for x in edits if x.get("videoId") == vid and num(x.get("at")) > sent_at]
+        appr = {}
+        for x in sorted(mine, key=lambda x: num(x.get("at"))):
+            if x.get("field") == "__approved": appr[x.get("pieceKey", "")] = (x.get("text") == "yes", num(x.get("at")))
+        promoted = dict(v.get("amyPromoted") or {})
+        ps = dict(v.get("pieceStatus") or {})
+        old = json.loads(json.dumps(c)); changed = False; sent_keys = []
+        for k, (yes, at) in appr.items():
+            if not yes or ps.get(k) in ("Skip", "Pulled back"): continue
+            fl = amy_fields(c, k)
+            fedits = [x for x in mine if x.get("pieceKey") == k and x.get("field") not in ("__approved", "__note")]
+            last = max([at] + [num(x.get("at")) for x in fedits])
+            if promoted.get(k, 0) >= last: continue  # already sent this version
+            for x in sorted(fedits, key=lambda x: num(x.get("at"))):
+                try: pth = json.loads(x.get("path") or "[]")
+                except Exception: pth = []
+                if not pth: pth = next((f["path"] for f in fl if f["label"] == x.get("field")), [])
+                if not pth: continue
+                o = c
+                try:
+                    for seg in pth[:-1]: o = o[seg]
+                    if o[pth[-1]] != x.get("text", ""): o[pth[-1]] = x.get("text", ""); changed = True
+                except Exception: pass
+            if ps.get(k) not in ("Reviewer approved", "Deb approved", "Sent to AARP"): ps[k] = "Amy approved"
+            promoted[k] = last; sent_keys.append(k)
+        if not sent_keys: continue
+        aa = [a for a in (v.get("amyApproved") or []) if isinstance(a, dict)]
+        have = {a.get("key") for a in aa}
+        for k in sent_keys:
+            if k not in have: aa.append({"key": k, "by": "Amy", "at": promoted[k]})
+        v["amyApproved"] = aa; v["pieceStatus"] = ps; v["amyPromoted"] = promoted
+        if v.get("clientState") != "remove": v["clientState"] = "queued"
+        d = {"amyApproved": aa, "pieceStatus": ps, "amyPromoted": promoted, "autoSentToAarp": {"at": now, "keys": sent_keys}}
+        if changed:
+            d["content"] = c; d["prevContent"] = old; d["amyAppliedAt"] = now; rec["orig_content"] = old
+        out[vid] = d
+    return out
+
 def amy_sync(acode, videos, tabs, updates, asset_file, now):
     os.makedirs("img-etc", exist_ok=True)
     def enc(aid, name):
@@ -249,6 +296,7 @@ def amy_sync(acode, videos, tabs, updates, asset_file, now):
             d["pieceStatus"] = ps; d["status"] = "Ready for AARP"
             # Amy sent it back: her copy becomes the copy (the old copy is kept for Undo).
             old = v.get("content") or {}; newc = json.loads(json.dumps(old)); n_applied = 0
+            orig = rec.get("orig_content") or old
             for k_, lst in ae.items():
                 for e in sorted(lst, key=lambda e: e["at"]):
                     if e["at"] <= sent_at: continue  # only this round's edits
@@ -261,7 +309,7 @@ def amy_sync(acode, videos, tabs, updates, asset_file, now):
                             o[pth[-1]] = e["text"]; n_applied += 1
                     except Exception: pass
             if n_applied:
-                d["prevContent"] = old; d["content"] = newc; d["amyAppliedAt"] = now; d["amyAppliedCount"] = n_applied
+                d["prevContent"] = orig; d["content"] = newc; d["amyAppliedAt"] = now; d["amyAppliedCount"] = n_applied
         u = next((u for u in updates if u["doc_id"] == vid), None)
         if u: u["data"].update(d)
         else: updates.append({"doc_id": vid, "version": rec["version"], "data": d})
@@ -301,6 +349,10 @@ def main():
         return out
 
     updates, now, sent, removed, missing = [], int(time.time() * 1000), [], [], []
+    try: early_tabs = parse_sheet(open(a.sheet).read())
+    except Exception: early_tabs = {}
+    for vid, d in amy_promote(videos, early_tabs, now).items():
+        updates.append({"doc_id": vid, "version": videos[vid]["version"], "data": d})
     for vid, rec in sorted(videos.items(), key=lambda x: x[1]["data"].get("order", 0)):
         v = rec["data"]
         st = v.get("clientState")
@@ -394,6 +446,11 @@ def main():
     if a.amy_passcode:
         amy_sync(a.amy_passcode, videos, tabs, updates, asset_file, now)
 
+    merged = {}
+    for u in updates:  # one entry per studio doc
+        if u["doc_id"] in merged: merged[u["doc_id"]]["data"].update(u["data"])
+        else: merged[u["doc_id"]] = {"doc_id": u["doc_id"], "version": u["version"], "data": dict(u["data"])}
+    updates = list(merged.values())
     json.dump(updates, open(a.out, "w"), indent=1)
     print(json.dumps({"sent": sent, "removed": removed, "studio_updates": len(updates), "missing_images": missing}))
 
